@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fafaf7;
+  --fg: #1c1b18;
+  --muted: #6b6960;
+  --card: #ffffff;
+  --border: #e6e3da;
+  --accent: #2f7d5b;
+  --accent-fg: #ffffff;
+  --warn: #b3541e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14130f;
+    --fg: #f1efe8;
+    --muted: #a09d92;
+    --card: #1e1d18;
+    --border: #2d2b24;
+    --accent: #4fb586;
+    --accent-fg: #0d1a14;
+    --warn: #e0803b;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-warn: var(--warn);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Big, thumb-friendly tap targets everywhere. Walkers use this one-handed on a trail. */
+button,
+a.btn,
+input,
+select,
+textarea {
+  min-height: 44px;
+}
