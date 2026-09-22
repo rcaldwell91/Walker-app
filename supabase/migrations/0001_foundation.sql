@@ -128,7 +128,8 @@ $$;
 
 -- Invite links: walker → client. One token per client; can be regenerated.
 create table client_invites (
-  token text primary key default encode(gen_random_bytes(18), 'base64url'),
+  -- base64url encoding needs Postgres 18; translate() gives the same URL-safe token on 17.
+  token text primary key default translate(encode(gen_random_bytes(18), 'base64'), '+/', '-_'),
   walker_id uuid not null references walkers (id) on delete cascade,
   client_id uuid not null references clients (id) on delete cascade,
   expires_at timestamptz not null default now() + interval '14 days',
