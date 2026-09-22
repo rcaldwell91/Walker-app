@@ -12,24 +12,26 @@ export default async function NewWalkPage() {
   const [{ data: clients }, { data: services }, { data: trails }] = await Promise.all([
     supabase
       .from("clients")
-      .select("id, name, color, group_label, dogs(id, name, working_on, active)")
-      .eq("status", "active")
+      .select("id, name, color, group_label, lat, lng, dogs(id, name, working_on, active)")
+      // Invited clients count too: a walker can walk a dog before the owner makes a login.
+      .in("status", ["active", "invited"])
       .order("name"),
     supabase.from("service_types").select("id, name, category, walker_id").order("sort_order"),
-    supabase.from("trails").select("id, name, walker_id").order("name"),
+    supabase.from("trails").select("id, name, walker_id, lat, lng").order("name"),
   ]);
 
   const dogs = (clients ?? []).flatMap((c) =>
     (c.dogs ?? [])
       .filter((d) => d.active)
-      .map((d) => ({ ...d, clientName: c.name, color: c.color, group: c.group_label })),
+      .map((d) => ({ ...d, clientId: c.id, clientName: c.name, color: c.color, group: c.group_label })),
   );
+  const stops = (clients ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, lat: c.lat, lng: c.lng }));
 
   if (!dogs.length) {
     return (
       <>
         <PageTitle>Start a walk</PageTitle>
-        <Empty>Once a client joins and their dogs are on file, you can start walks here.</Empty>
+        <Empty>Once a client&apos;s dogs are on file, you can start walks here.</Empty>
       </>
     );
   }
@@ -40,7 +42,13 @@ export default async function NewWalkPage() {
   return (
     <>
       <PageTitle sub="Tap the dogs you're picking up.">Start a walk</PageTitle>
-      <StartWalkForm dogs={dogs} services={svc} trails={trails ?? []} />
+      <StartWalkForm
+        dogs={dogs}
+        stops={stops}
+        services={svc}
+        trails={trails ?? []}
+        ownTrailIds={(trails ?? []).filter((t) => t.walker_id === user.id).map((t) => t.id)}
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
+import { saveClientCoordinates } from "@/lib/geo/geocode";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -42,6 +43,7 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
     .eq("id", client_id)
     .eq("profile_id", user.id);
   if (error) return { error: error.message };
+  await saveClientCoordinates(supabase, client_id, contact.address_line, contact.city);
 
   // Dogs come in as dog[0][name], dog[0][breed], ...
   const dogs: Record<string, Record<string, string>> = {};

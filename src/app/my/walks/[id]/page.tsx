@@ -3,16 +3,21 @@ import { requireRole } from "@/lib/session";
 import { Card, PageTitle } from "@/components/ui";
 import { fmtDate, fmtDuration, fmtTime } from "@/lib/format";
 import { EVENT_LABELS } from "@/lib/events";
+import { fetchGpsLine } from "@/lib/gps";
+import { getTimeZone } from "@/lib/timezone";
+import { WalkMap } from "./walk-map";
 
 export default async function ClientWalkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireRole("client");
+  const tz = await getTimeZone();
   const { data: walk } = await supabase
     .from("walks")
     .select("id, status, started_at, ended_at, distance_m, summary, trail:trails(name), service:service_types(name), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name)), walk_events(id, kind, note, at, dog_id), photos(id, storage_path, caption), dog_notes(id, body, created_at, dog_id)")
     .eq("id", id)
     .maybeSingle();
   if (!walk) notFound();
+  const line = await fetchGpsLine(supabase, id);
 
   const trail = Array.isArray(walk.trail) ? walk.trail[0] : walk.trail;
   const service = Array.isArray(walk.service) ? walk.service[0] : walk.service;
@@ -21,14 +26,14 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <PageTitle sub={`${fmtDate(walk.started_at)} · ${service?.name}${trail ? ` · ${trail.name}` : ""}`}>
+      <PageTitle sub={`${fmtDate(walk.started_at, tz)} · ${service?.name}${trail ? ` · ${trail.name}` : ""}`}>
         {dogs.map((d) => d.dog?.name).join(", ")}
       </PageTitle>
 
       <Card className="mb-4 grid grid-cols-3 gap-2 text-center">
         <div>
           <p className="text-xs text-muted">Started</p>
-          <p className="font-medium">{fmtTime(walk.started_at) || "—"}</p>
+          <p className="font-medium">{fmtTime(walk.started_at, tz) || "—"}</p>
         </div>
         <div>
           <p className="text-xs text-muted">Time</p>
@@ -41,6 +46,8 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
           <p className="font-medium">{walk.distance_m ? `${(walk.distance_m / 1609).toFixed(1)} mi` : "—"}</p>
         </div>
       </Card>
+
+      <WalkMap walkId={walk.id} initialLine={line} live={walk.status === "in_progress"} />
 
       {walk.summary ? <Card className="mb-4 whitespace-pre-wrap">{walk.summary}</Card> : null}
 
@@ -67,7 +74,7 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
             d.picked_up_at ? (
               <li key={`pu-${d.dog?.id}`} className="flex justify-between">
                 <span>Picked up {d.dog?.name}</span>
-                <span className="text-muted">{fmtTime(d.picked_up_at)}</span>
+                <span className="text-muted">{fmtTime(d.picked_up_at, tz)}</span>
               </li>
             ) : null,
           )}
@@ -80,14 +87,14 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
                   {EVENT_LABELS[e.kind] ?? e.kind}
                   {e.note ? ` — ${e.note}` : ""}
                 </span>
-                <span className="text-muted">{fmtTime(e.at)}</span>
+                <span className="text-muted">{fmtTime(e.at, tz)}</span>
               </li>
             ))}
           {dogs.map((d) =>
             d.dropped_off_at ? (
               <li key={`do-${d.dog?.id}`} className="flex justify-between">
                 <span>Dropped off {d.dog?.name}</span>
-                <span className="text-muted">{fmtTime(d.dropped_off_at)}</span>
+                <span className="text-muted">{fmtTime(d.dropped_off_at, tz)}</span>
               </li>
             ) : null,
           )}

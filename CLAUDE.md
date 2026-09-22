@@ -21,6 +21,16 @@ Read `docs/BLUEPRINT.md` first. It has the feature list grouped by build stage a
 
 Placeholder pages for later stages use `<ComingSoon stage={n}>`. Replace them as you build.
 
+## Maps, geocoding, routing (Stage 4)
+
+Free and keyless for now. Each piece sits behind one file so Mapbox or Google can replace it without touching pages:
+
+- **Map display:** `src/components/map-view.tsx` (Leaflet + OpenStreetMap tiles). Pages pass plain pins and lines. `NEXT_PUBLIC_MAP_TILE_URL` overrides the tile server.
+- **Address → coordinates:** `src/lib/geo/geocode.ts` (Nominatim). Max 1 request/second, queued in-process; runs when a client's address is saved (walker or client intake) and stores `clients.lat/lng`. `GEOCODER_URL` overrides the base URL.
+- **Routing:** `src/lib/geo/distance.ts`. Pickups are ordered nearest-neighbor from the walker's current location using **straight-line distance**, and ETA = distance ÷ 25 mph, rounded up. **Real road routing (drive times, actual roads) comes later** with the maps provider.
+- **Time zones:** the server runs in UTC. The browser's zone is stored in the `tz` cookie (`TimeZoneSync`); use `getTimeZone()` and pass `tz` to `fmtTime`/`fmtDate` in server components. Repeating bookings are expanded in `src/lib/schedule.ts`.
+- **Realtime:** `gps_points` and `walk_events` are in the `supabase_realtime` publication (migration 0007). RLS decides who receives each row.
+
 ## Commands
 
 - `npm run dev` — local server

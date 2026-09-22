@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
-import { Card, LinkButton, PageTitle } from "@/components/ui";
+import { Card, ErrorText, LinkButton, PageTitle } from "@/components/ui";
 import { InviteLink } from "@/components/invite-link";
 import { AddDogForm } from "@/components/add-dog-form";
 import { regenerateInvite } from "../actions";
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClientDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const { supabase } = await requireRole("walker", "operator");
   const { data: client } = await supabase
     .from("clients")
@@ -24,6 +31,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       <PageTitle sub={[client.address_line, client.city].filter(Boolean).join(", ") || undefined}>
         {client.name}
       </PageTitle>
+
+      {error ? (
+        <div className="mb-4">
+          <ErrorText>{error}</ErrorText>
+        </div>
+      ) : null}
 
       {client.status === "invited" ? (
         <Card className="mb-4">

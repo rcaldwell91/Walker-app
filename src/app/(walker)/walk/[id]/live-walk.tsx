@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addNote, logEvent, markPickup, saveGpsPoints, sendStatus } from "../actions";
 import { Button, Card, ErrorText, LinkButton } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { EVENT_EMOJI, EVENT_LABELS } from "@/lib/events";
 import { fmtTime } from "@/lib/format";
+import { MapView, type MapPin } from "@/components/map-view";
+import { distanceM, etaMinutes, type LatLng } from "@/lib/geo/distance";
 
 type Dog = {
   id: string;
@@ -16,6 +18,9 @@ type Dog = {
   quirks: string | null;
   clientId: string;
   clientName: string;
+  clientColor: string | null;
+  clientLat: number | null;
+  clientLng: number | null;
   picked_up_at: string | null;
   dropped_off_at: string | null;
 };
@@ -26,21 +31,52 @@ export function LiveWalk({
   events,
   notes,
   messages,
+  initialLine,
 }: {
-  walk: { id: string; started_at: string; serviceName: string; trailName: string | null; buttons: string[] };
+  walk: { id: string; started_at: string; serviceName: string; trailName: string | null; buttons: string[]; pickupOrder: string[] };
   dogs: Dog[];
   events: { id: string; kind: string; note: string | null; at: string; dog_id: string | null }[];
   notes: { id: string; body: string; dog_id: string; created_at: string }[];
   messages: { id: string; kind: string; client_id: string; sent_at: string }[];
+  initialLine: LatLng[];
 }) {
   const [pending, start] = useTransition();
   const [focusDog, setFocusDog] = useState<string | null>(dogs.length === 1 ? dogs[0].id : null);
   const [noteState, noteAction, notePending] = useActionState(addNote.bind(null, walk.id), undefined);
   const elapsed = useElapsed(walk.started_at);
-  const gps = useGpsTracker(walk.id);
+  const gps = useGpsTracker(walk.id, initialLine);
 
   const focus = dogs.find((d) => d.id === focusDog) ?? null;
-  const clients = Array.from(new Map(dogs.map((d) => [d.clientId, d.clientName])).entries());
+  // One row per client, in pickup order.
+  const clients = useMemo(() => {
+    const rank = (id: string) => {
+      const i = walk.pickupOrder.indexOf(id);
+      return i === -1 ? Infinity : i;
+    };
+    return Array.from(
+      new Map(
+        dogs.map((d) => [
+          d.clientId,
+          {
+            id: d.clientId,
+            name: d.clientName,
+            color: d.clientColor,
+            at: d.clientLat != null && d.clientLng != null ? { lat: d.clientLat, lng: d.clientLng } : null,
+          },
+        ]),
+      ).values(),
+    ).sort((a, b) => rank(a.id) - rank(b.id));
+  }, [dogs, walk.pickupOrder]);
+  // Straight-line ETA from where the walker is now. Real road routing comes later.
+  const etaTo = (at: LatLng | null) => (gps.here && at ? etaMinutes(distanceM(gps.here, at)) : undefined);
+  // Memoized: the timer re-renders this screen every second.
+  const pins = useMemo<MapPin[]>(() => {
+    const out: MapPin[] = clients.flatMap((c, i) =>
+      c.at ? [{ id: `stop:${c.id}`, lat: c.at.lat, lng: c.at.lng, kind: "stop" as const, color: c.color, label: String(i + 1) }] : [],
+    );
+    if (gps.here) out.push({ id: "me", lat: gps.here.lat, lng: gps.here.lng, kind: "me", label: "You" });
+    return out;
+  }, [clients, gps.here]);
   const lastMsg = (clientId: string) => messages.filter((m) => m.client_id === clientId).sort((a, b) => b.sent_at.localeCompare(a.sent_at))[0];
 
   return (
@@ -56,6 +92,8 @@ export function LiveWalk({
           {gps.distanceM ? <p>{(gps.distanceM / 1609).toFixed(2)} mi</p> : null}
         </div>
       </Card>
+
+      <MapView pins={pins} line={gps.line} follow className="h-48" />
 
       {/* Dog picker: one tap to focus a dog and see what they're working on */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -167,16 +205,18 @@ export function LiveWalk({
       <Card>
         <p className="mb-2 text-sm font-medium">Tell the owner</p>
         <ul className="flex flex-col gap-2">
-          {clients.map(([clientId, name]) => {
+          {clients.map(({ id: clientId, name, at }) => {
             const last = lastMsg(clientId);
+            const eta = etaTo(at);
             return (
               <li key={clientId} className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm">{name}</p>
+                  {eta ? <p className="text-xs text-muted">~{eta} min away</p> : null}
                   {last ? <p className="text-xs text-muted">Sent “{EVENT_LABELS[last.kind] ?? last.kind.replace("_", " ")}” {fmtTime(last.sent_at)}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="secondary" className="px-3 text-xs" disabled={pending} onClick={() => start(() => sendStatus(walk.id, "on_my_way", clientId, gps.etaMinutes ?? undefined))}>
+                  <Button variant="secondary" className="px-3 text-xs" disabled={pending} onClick={() => start(() => sendStatus(walk.id, "on_my_way", clientId, etaTo(at)))}>
                     On my way
                   </Button>
                   <Button variant="secondary" className="px-3 text-xs" disabled={pending} onClick={() => start(() => sendStatus(walk.id, "here", clientId))}>
@@ -241,9 +281,11 @@ function useElapsed(startIso: string) {
  * every 30s or 20 points — and again when the connection comes back, so a
  * dead zone on the trail doesn't lose the trail.
  */
-function useGpsTracker(walkId: string) {
+function useGpsTracker(walkId: string, initialLine: LatLng[]) {
   const [status, setStatus] = useState("GPS off");
-  const [distanceM, setDistanceM] = useState(0);
+  const [walkedM, setWalkedM] = useState(0);
+  const [line, setLine] = useState<LatLng[]>(initialLine);
+  const [here, setHere] = useState<LatLng | null>(initialLine.at(-1) ?? null);
   const queue = useRef<{ at: string; lat: number; lng: number; accuracy_m?: number }[]>([]);
   const last = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -262,8 +304,13 @@ function useGpsTracker(walkId: string) {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         if (accuracy > 60) return; // skip junk fixes
         setStatus(navigator.onLine ? "GPS on" : "GPS on · offline, will sync");
-        if (last.current) setDistanceM((d) => d + haversine(last.current!, { lat, lng }));
+        if (last.current) {
+          const step = distanceM(last.current, { lat, lng });
+          setWalkedM((d) => d + step);
+        }
         last.current = { lat, lng };
+        setHere({ lat, lng });
+        setLine((l) => [...l, { lat, lng }]);
         queue.current.push({ at: new Date(pos.timestamp).toISOString(), lat, lng, accuracy_m: accuracy });
         if (queue.current.length >= 20) flush();
       },
@@ -280,15 +327,5 @@ function useGpsTracker(walkId: string) {
     };
   }, [walkId]);
 
-  return { status, distanceM: Math.round(distanceM), etaMinutes: null as number | null };
-}
-
-function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
+  return { status, distanceM: Math.round(walkedM), here, line };
 }

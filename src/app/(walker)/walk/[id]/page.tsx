@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
+import { fetchGpsLine } from "@/lib/gps";
 import { LiveWalk } from "./live-walk";
 
 export default async function WalkPage({ params }: { params: Promise<{ id: string }> }) {
@@ -7,11 +8,12 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
   const { supabase } = await requireRole("walker", "operator");
   const { data: walk } = await supabase
     .from("walks")
-    .select("id, status, started_at, trail:trails(name), service:service_types(name, log_buttons), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name, working_on, progress_summary, quirks, client_id, client:clients(id, name))), walk_events(id, kind, note, at, dog_id), dog_notes(id, body, dog_id, created_at), messages(id, kind, client_id, sent_at)")
+    .select("id, status, started_at, pickup_order, trail:trails(name), service:service_types(name, log_buttons), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name, working_on, progress_summary, quirks, client_id, client:clients(id, name, color, lat, lng))), walk_events(id, kind, note, at, dog_id), dog_notes(id, body, dog_id, created_at), messages(id, kind, client_id, sent_at)")
     .eq("id", id)
     .maybeSingle();
   if (!walk) notFound();
   if (walk.status === "done") redirect(`/walk/${id}/done`);
+  const line = await fetchGpsLine(supabase, id);
 
   const service = Array.isArray(walk.service) ? walk.service[0] : walk.service;
   const trail = Array.isArray(walk.trail) ? walk.trail[0] : walk.trail;
@@ -26,6 +28,9 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
       quirks: dog!.quirks,
       clientId: client?.id ?? dog!.client_id,
       clientName: client?.name ?? "",
+      clientColor: client?.color ?? null,
+      clientLat: client?.lat ?? null,
+      clientLng: client?.lng ?? null,
       picked_up_at: wd.picked_up_at,
       dropped_off_at: wd.dropped_off_at,
     };
@@ -39,7 +44,9 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
         serviceName: service?.name ?? "Walk",
         trailName: trail?.name ?? null,
         buttons: (service?.log_buttons as string[]) ?? ["poop", "pee", "water", "note"],
+        pickupOrder: walk.pickup_order ?? [],
       }}
+      initialLine={line}
       dogs={dogs}
       events={(walk.walk_events ?? []).sort((a, b) => b.at.localeCompare(a.at))}
       notes={walk.dog_notes ?? []}

@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
+import { fetchGpsLine } from "@/lib/gps";
+import { pathDistanceM } from "@/lib/geo/distance";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -18,9 +20,13 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
   const { data: existing } = await supabase.from("walks").select("id").eq("status", "in_progress").maybeSingle();
   if (existing) redirect(`/walk/${existing.id}`);
 
-  // Pickup order: for now the order the dogs were selected. Route optimization lands with maps.
+  // Pickup order comes from the form (suggested, maybe reordered by the walker). It has to
+  // cover exactly the clients whose dogs are on this walk; otherwise fall back to tap order.
   const { data: dogs } = await supabase.from("dogs").select("id, client_id").in("id", dogIds);
-  const pickupOrder = Array.from(new Set((dogs ?? []).map((d) => d.client_id)));
+  const walkClients = Array.from(new Set((dogs ?? []).map((d) => d.client_id)));
+  const chosen = Array.from(new Set(form.getAll("pickup_client_id").map(String)));
+  const pickupOrder =
+    chosen.length === walkClients.length && chosen.every((id) => walkClients.includes(id)) ? chosen : walkClients;
 
   const { data: walk, error } = await supabase
     .from("walks")
@@ -36,7 +42,11 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
     .single();
   if (error || !walk) return { error: error?.message ?? "Couldn't start" };
 
-  await supabase.from("walk_dogs").insert(dogIds.map((dog_id) => ({ walk_id: walk.id, dog_id })));
+  const { error: dErr } = await supabase.from("walk_dogs").insert(dogIds.map((dog_id) => ({ walk_id: walk.id, dog_id })));
+  if (dErr) {
+    await supabase.from("walks").delete().eq("id", walk.id);
+    return { error: `Couldn't add the dogs to the walk: ${dErr.message}` };
+  }
   redirect(`/walk/${walk.id}`);
 }
 
@@ -106,7 +116,9 @@ export async function saveGpsPoints(walkId: string, points: { at: string; lat: n
 export async function endWalk(walkId: string, _: ActionState, form: FormData): Promise<ActionState> {
   const { supabase } = await requireRole("walker", "operator");
   const summary = String(form.get("summary") ?? "").trim() || null;
-  const distance = Number(form.get("distance_m") ?? 0) || null;
+  // Distance comes from the GPS line saved during the walk.
+  const line = await fetchGpsLine(supabase, walkId);
+  const distance = line.length > 1 ? Math.round(pathDistanceM(line)) : null;
 
   // Per-dog progress updates: working_on[<dogId>], progress[<dogId>]
   for (const [k, v] of form.entries()) {

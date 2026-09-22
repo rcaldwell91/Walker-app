@@ -1,11 +1,12 @@
-export function fmtTime(iso: string | null | undefined) {
+/** Pass `tz` from server components (the server runs in UTC); client components can omit it. */
+export function fmtTime(iso: string | Date | null | undefined, tz?: string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz });
 }
 
-export function fmtDate(iso: string | null | undefined) {
+export function fmtDate(iso: string | Date | null | undefined, tz?: string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", timeZone: tz });
 }
 
 export function fmtDuration(startIso: string | null, endIso: string | null) {
