@@ -61,6 +61,8 @@ export async function signupWalker(_: AuthState, form: FormData): Promise<AuthSt
     business_name: d.business_name ?? "",
   });
   if (wErr) {
+    // Don't leave a login with no walker behind; the profile row cascades with it.
+    await admin.auth.admin.deleteUser(data.user.id);
     return {
       error: wErr.code === "23505" ? "That handle is taken. Try another." : wErr.message,
     };

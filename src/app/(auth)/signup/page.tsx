@@ -18,7 +18,7 @@ export default function SignupPage() {
           <Input name="business_name" />
         </Field>
         <Field label="Handle" hint="Your profile link: /w/your-handle">
-          <Input name="handle" pattern="[a-z0-9-]{3,30}" placeholder="e.g. roberts-walks" required />
+          <Input name="handle" pattern="[a-z0-9\-]{3,30}" placeholder="e.g. roberts-walks" required />
         </Field>
         <Field label="Email">
           <Input name="email" type="email" autoComplete="email" required />

@@ -13,6 +13,7 @@ Read `docs/BLUEPRINT.md` first. It has the feature list grouped by build stage a
 - **Finish everything buildable before configuring external services** (Stripe, Twilio, maps API keys, DNS). Model the data now, wire the service later.
 - **All features for every walker.** Pricing scales with usage, not features. Never gate a feature by plan.
 - **Migrations are append-only** once applied to a real project. New file, higher number.
+- **Before launch: turn "Confirm email" back on** in Supabase (Authentication → Sign In / Providers → Email). It's off for local testing only.
 
 ## Build stages (see blueprint)
 
