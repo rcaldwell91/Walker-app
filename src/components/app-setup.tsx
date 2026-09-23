@@ -55,6 +55,12 @@ export function AppSetup({ platform, showGuide }: { platform: Platform; showGuid
                 Not now
               </button>
             </div>
+            {/* Android allows notifications without installing, so ask in the same sheet. */}
+            {askPush && platform === "android" ? (
+              <div className="mb-3">
+                <PushAsk standalone={false} onDone={() => setAskPush(false)} />
+              </div>
+            ) : null}
             <InstallGuide platform={platform} onClose={closeGuide} />
           </div>
         </div>

@@ -17,6 +17,7 @@ Read `docs/BLUEPRINT.md` first. It has the feature list grouped by build stage a
 - **Migrations are append-only** once applied to a real project. New file, higher number.
 - **Notify through `notify()`** (`src/lib/notify.ts`, server only): it writes the in-app notification and sends Web Push, respecting each person's per-kind settings. New kinds go in `src/lib/push-kinds.ts`. A failed push never fails the action.
 - **Billing is walker → client.** Finished walks become invoice lines by trigger, billed through the client's own walker (never the covering walker). Drafts are made on page load (`draftDueInvoices`), no cron. Sent invoices are locked; add card payments and a platform-fee line by extending the enums (see 0013), not new tables.
+- **Suspended walkers are locked out by RLS** (0016): a restrictive policy on every client-data table, plus checks in the security-definer functions that return client data. A new client-data table needs the same restrictive policy; a new security-definer function that returns client data needs `i_am_suspended()`. Paused walkers keep working.
 - **Operator is never self-assigned.** The operator role comes only from `app_metadata` set with the service role. Signup metadata can pick walker or client only.
 - **Before launch: turn "Confirm email" back on** in Supabase (Authentication → Sign In / Providers → Email). It's off for local testing only.
 

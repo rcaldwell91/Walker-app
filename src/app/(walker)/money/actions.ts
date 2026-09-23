@@ -170,3 +170,21 @@ export async function setNetDays(form: FormData) {
   await supabase.from("walkers").update({ invoice_net_days: days }).eq("id", user.id);
   refresh();
 }
+
+/** Void a sent invoice with no payments. Its walks go back to unbilled for the next invoice. */
+export async function voidInvoice(invoiceId: string) {
+  const { supabase, user } = await requireRole("walker");
+  const { data: inv } = await supabase.from("invoices").select("id, client_id, number, status").eq("id", invoiceId).eq("walker_id", user.id).maybeSingle();
+  if (!inv || inv.status !== "sent") return;
+  const { error } = await supabase.from("invoices").update({ status: "void" }).eq("id", invoiceId);
+  if (error) redirect(`/money/invoices/${invoiceId}?error=${encodeURIComponent(error.message)}`);
+  const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  await notify([await clientProfileId(inv.client_id)], {
+    kind: "invoice",
+    title: `Invoice #${inv.number} was voided`,
+    body: `${me?.full_name ?? "Your walker"} cancelled it. You don't owe anything on it.`,
+    url: `/my/invoices/${invoiceId}`,
+  });
+  refresh(invoiceId);
+  revalidatePath(`/clients/${inv.client_id}`);
+}

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
 import { dateKey, fmtDateKey } from "@/lib/time";
-import { cents } from "@/lib/format";
+import { cents, fmtDate } from "@/lib/format";
 import { METHOD_LABEL, statusLabel, summarize } from "@/lib/billing";
 import { Card, PageTitle } from "@/components/ui";
 
@@ -17,7 +17,7 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
   const { data: inv } = await supabase
     .from("invoices")
     .select(
-      "id, number, status, client_id, period_start, period_end, issued_on, due_on, walker:walkers(business_name, profile:profiles(full_name)), invoice_lines(id, kind, description, occurred_on, amount_cents), payments(id, amount_cents, method, received_on)",
+      "id, number, status, client_id, period_start, period_end, issued_on, due_on, voided_at, void_total_cents, walker:walkers(business_name, profile:profiles(full_name)), invoice_lines(id, kind, description, occurred_on, amount_cents), payments(id, amount_cents, method, received_on)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -44,6 +44,14 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
         </span>
       </PageTitle>
 
+      {inv.status === "void" ? (
+        <Card className="mb-4" data-voided>
+          <p className="font-medium">This invoice was voided</p>
+          <p className="text-sm text-muted">
+            {from} cancelled it{inv.voided_at ? ` on ${fmtDate(inv.voided_at, tz)}` : ""}. It was for {cents(s.total)}. You don&apos;t owe anything on it.
+          </p>
+        </Card>
+      ) : (
       <Card className="mb-4">
         <ul className="flex flex-col divide-y divide-border text-sm">
           {lines.map((l) => (
@@ -77,8 +85,9 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
           {inv.due_on ? ` · due ${fmtDateKey(inv.due_on)}` : ""}
         </p>
       </Card>
+      )}
 
-      {s.balance > 0 ? (
+      {inv.status === "void" ? null : s.balance > 0 ? (
         <Card className="border-dashed text-center" data-pay-by-card>
           <button type="button" disabled className="btn w-full rounded-xl bg-accent/40 px-4 font-medium text-accent-fg">
             Pay by card — coming soon

@@ -118,13 +118,15 @@ export function summarize(
     period_end: string;
     issued_on: string | null;
     due_on: string | null;
+    void_total_cents?: number | null;
     invoice_lines?: { amount_cents: number }[] | null;
     payments?: { amount_cents: number }[] | null;
   }[],
   today: string,
 ): InvoiceSummary[] {
   return invoices.map((i) => {
-    const total = (i.invoice_lines ?? []).reduce((n, l) => n + l.amount_cents, 0);
+    // A voided invoice's walks went back to unbilled; show what it was for.
+    const total = i.status === "void" && i.void_total_cents != null ? i.void_total_cents : (i.invoice_lines ?? []).reduce((n, l) => n + l.amount_cents, 0);
     const paid = (i.payments ?? []).reduce((n, p) => n + p.amount_cents, 0);
     const balance = i.status === "void" ? 0 : Math.max(0, total - paid);
     return {
@@ -145,11 +147,11 @@ export function summarize(
 }
 
 export const INVOICE_FIELDS =
-  "id, number, status, client_id, period_start, period_end, issued_on, due_on, sent_at, invoice_lines(amount_cents), payments(amount_cents)";
+  "id, number, status, client_id, period_start, period_end, issued_on, due_on, sent_at, void_total_cents, invoice_lines(amount_cents), payments(amount_cents)";
 
 export function statusLabel(s: InvoiceSummary) {
   if (s.status === "draft") return "Draft";
-  if (s.status === "void") return "Void";
+  if (s.status === "void") return "Voided";
   if (s.balance === 0) return "Paid";
   if (s.overdue) return "Overdue";
   return s.paid > 0 ? "Partly paid" : "Sent";

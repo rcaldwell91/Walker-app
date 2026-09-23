@@ -500,6 +500,148 @@ do $$ begin
 end $$;
 set local role authenticated;
 
+-- ---------------------------------------------------------------------------
+-- Voiding a sent invoice (0016)
+-- ---------------------------------------------------------------------------
+-- A puts B's covered walk (unbilled) on draft #1 and sends it, then voids it.
+select _as('00000000-0000-0000-0000-00000000000a');
+update invoice_lines set invoice_id = '60000000-0000-0000-0000-000000000001' where walk_id = '30000000-0000-0000-0000-0000000000b1';
+insert into invoice_lines (walker_id, client_id, invoice_id, kind, description, occurred_on, unit_cents) values
+  ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'extra', 'Late fee', current_date, 300);
+update invoices set status = 'sent' where id = '60000000-0000-0000-0000-000000000001';
+do $$ begin
+  begin
+    update invoices set status = 'void' where id = '60000000-0000-0000-0000-000000000002';
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Voided an invoice that has payments'; end if;
+  end;
+end $$;
+update invoices set status = 'void' where id = '60000000-0000-0000-0000-000000000001';
+do $$ begin
+  if (select status from invoices where id = '60000000-0000-0000-0000-000000000001') <> 'void' then raise exception 'Walker could not void a sent invoice'; end if;
+  if (select invoice_id from invoice_lines where walk_id = '30000000-0000-0000-0000-0000000000b1') is not null then
+    raise exception 'Voiding should return walk lines to unbilled';
+  end if;
+  if (select invoice_id from invoice_lines where description = 'Late fee') is distinct from '60000000-0000-0000-0000-000000000001' then
+    raise exception 'Extras stay on the voided invoice';
+  end if;
+  if (select void_total_cents from invoices where id = '60000000-0000-0000-0000-000000000001') is null then raise exception 'Void total not kept'; end if;
+  begin
+    update invoices set status = 'sent' where id = '60000000-0000-0000-0000-000000000001';
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Un-voided an invoice'; end if;
+  end;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select status from invoices where id = '60000000-0000-0000-0000-000000000001') <> 'void' then raise exception 'Client should see the invoice as voided'; end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Suspended walkers are locked out in the database (0016); paused ones aren't.
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+update coverage_approvals set revoked_at = null where coverage_walker_id = '00000000-0000-0000-0000-00000000000b';
+update walkers set status = 'paused' where id = '00000000-0000-0000-0000-00000000000a';
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if not exists (select 1 from clients) or not exists (select 1 from dogs) or not exists (select 1 from bookings)
+     or not exists (select 1 from walks) or not exists (select 1 from invoices) then
+    raise exception 'Paused walker should keep working';
+  end if;
+end $$;
+-- A (paused, still working) asks B for a cover; B accepts. Another open ask waits.
+insert into coverage_requests (id, booking_id, from_walker_id, to_walker_id, occurs_on, starts_at, tz) values
+  ('50000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
+   '00000000-0000-0000-0000-00000000000b', current_date + 20, now() + interval '20 days', 'America/Los_Angeles'),
+  ('50000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
+   '00000000-0000-0000-0000-00000000000b', current_date + 21, now() + interval '21 days', 'America/Los_Angeles');
+select _as('00000000-0000-0000-0000-00000000000b');
+update coverage_requests set status = 'accepted' where id = '50000000-0000-0000-0000-000000000003';
+
+-- The operator suspends both.
+select _as('00000000-0000-0000-0000-00000000000e');
+update walkers set status = 'suspended' where id in ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b');
+reset role;
+do $$ begin
+  if (select status from coverage_requests where id = '50000000-0000-0000-0000-000000000003') <> 'cancelled' then
+    raise exception 'Suspending B should cancel B''s upcoming accepted cover';
+  end if;
+end $$;
+-- Admin re-opens one ask to B, to prove B can't accept while suspended.
+select set_config('request.jwt.claim.sub', '', true);
+update coverage_requests set status = 'open' where id = '50000000-0000-0000-0000-000000000004';
+set local role authenticated;
+
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if exists (select 1 from clients) or exists (select 1 from dogs) or exists (select 1 from bookings) or exists (select 1 from booking_dogs)
+     or exists (select 1 from walks) or exists (select 1 from walk_dogs) or exists (select 1 from invoices) or exists (select 1 from invoice_lines)
+     or exists (select 1 from payments) or exists (select 1 from messages) or exists (select 1 from coverage_requests)
+     or exists (select 1 from my_coverage()) or exists (select 1 from open_due_check_ins('UTC')) then
+    raise exception 'Suspended walker can still read client data';
+  end if;
+  begin
+    insert into clients (walker_id, name) values ('00000000-0000-0000-0000-00000000000a', 'New client');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Suspended walker added a client'; end if;
+  end;
+  begin
+    insert into walks (walker_id, service_type_id, status, started_at)
+      select '00000000-0000-0000-0000-00000000000a', id, 'in_progress', now() from service_types where key = 'group_walk';
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Suspended walker started a walk'; end if;
+  end;
+  begin
+    perform reschedule_coverage('40000000-0000-0000-0000-000000000001', current_date, now(), 60, true);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Suspended walker rescheduled coverage'; end if;
+  end;
+end $$;
+update clients set name = 'Hacked' where walker_id = '00000000-0000-0000-0000-00000000000a';
+update invoices set notes = 'Hacked' where walker_id = '00000000-0000-0000-0000-00000000000a';
+delete from dogs where walker_id = '00000000-0000-0000-0000-00000000000a';
+select _as('00000000-0000-0000-0000-00000000000b');
+update coverage_requests set status = 'accepted' where id = '50000000-0000-0000-0000-000000000004';
+reset role;
+do $$ begin
+  if exists (select 1 from clients where name = 'Hacked') or exists (select 1 from invoices where notes = 'Hacked') then
+    raise exception 'Suspended walker changed client data';
+  end if;
+  if not exists (select 1 from dogs where walker_id = '00000000-0000-0000-0000-00000000000a') then raise exception 'Suspended walker deleted dogs'; end if;
+  if (select status from coverage_requests where id = '50000000-0000-0000-0000-000000000004') <> 'open' then
+    raise exception 'Suspended walker accepted coverage';
+  end if;
+end $$;
+-- Nobody can ask a suspended walker to cover. (B back to active, A asks D who's suspended.)
+select set_config('request.jwt.claim.sub', '', true);
+update walkers set status = 'active' where id = '00000000-0000-0000-0000-00000000000a';
+update walkers set status = 'suspended' where id = '00000000-0000-0000-0000-00000000000b';
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if not exists (select 1 from clients) then raise exception 'Reactivated walker should see their clients again'; end if;
+  begin
+    insert into coverage_requests (booking_id, from_walker_id, to_walker_id, occurs_on, starts_at, tz)
+      values ('40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b',
+              current_date + 22, now() + interval '22 days', 'America/Los_Angeles');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Coverage requested from a suspended walker'; end if;
+  end;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if not exists (select 1 from clients) or not exists (select 1 from invoices) then raise exception 'Clients keep seeing their own data'; end if;
+end $$;
+
 reset role;
 select 'RLS smoke test passed' as result;
 rollback;

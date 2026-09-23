@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button, Card, ErrorText, Field, Input, Select } from "@/components/ui";
 import { cents } from "@/lib/format";
 import { METHOD_LABEL } from "@/lib/billing";
-import { addLine, recordPayment, removeLine, updateLine } from "../../actions";
+import { addLine, recordPayment, removeLine, updateLine, voidInvoice } from "../../actions";
 
 type Line = { id: string; kind: string; description: string; date: string; amount: number };
 
@@ -111,5 +111,30 @@ export function PaymentForm({ invoiceId, today, balance }: { invoiceId: string; 
         </Button>
       </form>
     </Card>
+  );
+}
+
+/** Two taps: voiding tells the client and can't be undone. */
+export function VoidButton({ invoiceId }: { invoiceId: string }) {
+  const [sure, setSure] = useState(false);
+  if (!sure) {
+    return (
+      <button type="button" className="mt-4 block w-full text-center text-sm text-muted underline" onClick={() => setSure(true)} data-void>
+        Void this invoice
+      </button>
+    );
+  }
+  return (
+    <form action={voidInvoice.bind(null, invoiceId)} className="mt-4 flex flex-col gap-2">
+      <p className="text-center text-sm text-muted">The client is told it&apos;s voided. Its walks go back to unbilled for the next invoice.</p>
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" className="flex-1" onClick={() => setSure(false)}>
+          Keep it
+        </Button>
+        <Button type="submit" variant="danger" className="flex-1" data-void-confirm>
+          Void invoice
+        </Button>
+      </div>
+    </form>
   );
 }
