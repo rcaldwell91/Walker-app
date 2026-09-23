@@ -203,6 +203,7 @@ export function InstallGuide({ platform, onClose }: { platform: Platform; onClos
         <div className="my-3">{s.art}</div>
         <p className="font-medium">{s.title}</p>
         <p className="mt-1 text-sm text-muted">{s.body}</p>
+        {step === 0 ? <AppAddress /> : null}
       </div>
 
       <div className="flex gap-2">
@@ -219,6 +220,30 @@ export function InstallGuide({ platform, onClose }: { platform: Platform; onClos
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The app's address, to open in Safari/Chrome if they're somewhere else. */
+function AppAddress() {
+  const [url, setUrl] = useState(process.env.NEXT_PUBLIC_APP_URL ?? "");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!url) setUrl(window.location.origin);
+  }, [url]);
+  if (!url) return null;
+  return (
+    <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+      <span className="font-mono" data-app-url>{url.replace(/^https?:\/\//, "")}</span>
+      <button
+        type="button"
+        className="text-accent underline"
+        onClick={() => {
+          navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {});
+        }}
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
     </div>
   );
 }
