@@ -1,11 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/", "/login", "/signup", "/join", "/auth", "/w"];
+// Matched by whole path segment: "/w" covers "/w" and "/w/anything", never "/walk".
+const PUBLIC_PREFIXES = ["/login", "/signup", "/join", "/auth", "/w"];
 
-function isPublic(pathname: string) {
+export function isPublic(pathname: string) {
   if (pathname === "/") return true;
-  return PUBLIC_PREFIXES.some((p) => p !== "/" && pathname.startsWith(p));
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export async function updateSession(request: NextRequest) {

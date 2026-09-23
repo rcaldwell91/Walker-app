@@ -7,6 +7,7 @@ import { Button, Card, ErrorText, LinkButton } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { EVENT_EMOJI, EVENT_LABELS } from "@/lib/events";
 import { fmtTime } from "@/lib/format";
+import { useTimeZone } from "@/components/timezone-context";
 import { MapView, type MapPin } from "@/components/map-view";
 import { distanceM, etaMinutes, type LatLng } from "@/lib/geo/distance";
 
@@ -40,6 +41,7 @@ export function LiveWalk({
   messages: { id: string; kind: string; client_id: string; sent_at: string }[];
   initialLine: LatLng[];
 }) {
+  const tz = useTimeZone();
   const [pending, start] = useTransition();
   const [focusDog, setFocusDog] = useState<string | null>(dogs.length === 1 ? dogs[0].id : null);
   const [noteState, noteAction, notePending] = useActionState(addNote.bind(null, walk.id), undefined);
@@ -213,7 +215,7 @@ export function LiveWalk({
                 <div className="min-w-0">
                   <p className="truncate text-sm">{name}</p>
                   {eta ? <p className="text-xs text-muted">~{eta} min away</p> : null}
-                  {last ? <p className="text-xs text-muted">Sent “{EVENT_LABELS[last.kind] ?? last.kind.replace("_", " ")}” {fmtTime(last.sent_at)}</p> : null}
+                  {last ? <p className="text-xs text-muted">Sent “{EVENT_LABELS[last.kind] ?? last.kind.replace("_", " ")}” {fmtTime(last.sent_at, tz)}</p> : null}
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <Button variant="secondary" className="px-3 text-xs" disabled={pending} onClick={() => start(() => sendStatus(walk.id, "on_my_way", clientId, etaTo(at)))}>
@@ -244,7 +246,7 @@ export function LiveWalk({
               .map((row, i) => (
                 <li key={i} className="flex justify-between gap-3">
                   <span className="min-w-0 truncate">{row.text}</span>
-                  <span className="shrink-0 text-muted">{fmtTime(row.at)}</span>
+                  <span className="shrink-0 text-muted">{fmtTime(row.at, tz)}</span>
                 </li>
               ))}
           </ul>

@@ -96,3 +96,28 @@ export async function addDogAction(clientId: string, _: ActionState, form: FormD
   if (error || !data) return { error: error?.message ?? "Couldn't save" };
   redirect(`/dogs/${data.id}`);
 }
+
+const clientRatingSchema = z.object({
+  score: z.coerce.number().int().min(1, "Pick 1 to 5").max(5, "Pick 1 to 5"),
+  comment: z.string().trim().max(1000).optional(),
+});
+
+/** Private: clients can never read ratings about themselves (RLS on ratings). */
+export type RatingState = { error?: string; done?: number } | undefined;
+
+export async function rateClient(clientId: string, _: RatingState, form: FormData): Promise<RatingState> {
+  const parsed = clientRatingSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { supabase, user } = await requireRole("walker", "operator");
+  const { error } = await supabase.from("ratings").insert({
+    walker_id: user.id,
+    client_id: clientId,
+    target: "client",
+    rater_profile_id: user.id,
+    score: parsed.data.score,
+    comment: parsed.data.comment || null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/clients/${clientId}`);
+  return { done: Date.now() };
+}

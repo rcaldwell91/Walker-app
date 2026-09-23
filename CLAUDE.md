@@ -31,6 +31,20 @@ Free and keyless for now. Each piece sits behind one file so Mapbox or Google ca
 - **Time zones:** the server runs in UTC. The browser's zone is stored in the `tz` cookie (`TimeZoneSync`); use `getTimeZone()` and pass `tz` to `fmtTime`/`fmtDate` in server components. Repeating bookings are expanded in `src/lib/schedule.ts`.
 - **Realtime:** `gps_points` and `walk_events` are in the `supabase_realtime` publication (migration 0007). RLS decides who receives each row.
 
+## Data rules learned the hard way
+
+- **RLS limits rows; triggers limit columns.** An update policy lets someone change *every* column of a row they can update. Column guards live in migration 0009 (no self-promotion to operator, walkers can't verify their own background check, clients may only change their contact details / mark messages read / answer check-ins, tips stay pending). Add a guard whenever you add an update policy for a role that should only touch some columns.
+- **Walkers aren't world-readable.** The public page `/w/[handle]` reads `public_walker_profile(handle)` only, which returns a fixed set of public fields and no client data.
+- **Check-ins are opened on page load** by `open_due_check_ins(tz)` (walker's cadence; first one is due a cadence after the client was added). No cron.
+- **Repeating bookings:** skip or move a single occurrence with `booking_exceptions` (0008); `src/lib/schedule.ts` applies them.
+- **Embedding walkers from clients** must name the relationship: `walker:walkers!clients_walker_id_fkey(...)`. `coverage_approvals` makes a second path, and the unqualified embed errors out.
+- **In storage policies, qualify `storage.objects.name`** inside subqueries; other tables (e.g. `dogs`) have a `name` column too (see 0011).
+
+## RLS smoke test
+
+On a scratch Postgres (not the real project):
+`createdb walker_test`, then `psql -d walker_test -f` each of `supabase/tests/00_supabase_stub.sql`, every file in `supabase/migrations/` in order, and `supabase/tests/01_rls_smoke.sql`. It rolls back and ends with "RLS smoke test passed".
+
 ## Commands
 
 - `npm run dev` — local server

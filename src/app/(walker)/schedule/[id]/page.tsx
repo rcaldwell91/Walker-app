@@ -2,13 +2,23 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { Button, Card, PageTitle } from "@/components/ui";
 import { getTimeZone } from "@/lib/timezone";
-import { dateKey, timeOfDay } from "@/lib/time";
+import { dateKey, fmtDateKey, isDateKey, timeOfDay } from "@/lib/time";
+import { fmtDate, fmtTime } from "@/lib/format";
+import { isSeriesDay } from "@/lib/schedule";
 import { BookingForm } from "../booking-form";
 import { bookingOptions } from "../options";
-import { setBookingCancelled } from "../actions";
+import { clearOccurrenceChange, setBookingCancelled, skipOccurrence } from "../actions";
+import { MoveOccurrenceForm } from "./move-form";
 
-export default async function EditBookingPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditBookingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ on?: string }>;
+}) {
   const { id } = await params;
+  const { on } = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const [{ data: b }, { clients, services }] = await Promise.all([
@@ -23,6 +33,11 @@ export default async function EditBookingPage({ params }: { params: Promise<{ id
 
   const start = new Date(b.starts_at);
   const cancelled = b.status === "cancelled";
+  // Opened from one day of a repeating booking: offer to change just that day.
+  const day = !cancelled && isDateKey(on) && isSeriesDay(b, on, tz) ? on : null;
+  const { data: change } = day
+    ? await supabase.from("booking_exceptions").select("skipped, moved_to").eq("booking_id", b.id).eq("occurs_on", day).maybeSingle()
+    : { data: null };
 
   return (
     <>
@@ -39,6 +54,44 @@ export default async function EditBookingPage({ params }: { params: Promise<{ id
         </Card>
       ) : null}
 
+      {day ? (
+        <Card className="mb-6">
+          <p className="font-medium">Just {fmtDateKey(day)}</p>
+          {change?.skipped ? (
+            <>
+              <p className="mb-3 text-sm text-muted">Skipped. The rest of the repeats are unchanged.</p>
+              <form action={clearOccurrenceChange.bind(null, b.id, day)}>
+                <Button type="submit" variant="secondary" className="w-full">
+                  Put this day back
+                </Button>
+              </form>
+            </>
+          ) : change?.moved_to ? (
+            <>
+              <p className="mb-3 text-sm text-muted">
+                Moved to {fmtDate(change.moved_to, tz)} at {fmtTime(change.moved_to, tz)}. The rest of the repeats are unchanged.
+              </p>
+              <form action={clearOccurrenceChange.bind(null, b.id, day)}>
+                <Button type="submit" variant="secondary" className="w-full">
+                  Put it back at the usual time
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-muted">Change this one day without touching the rest.</p>
+              <form action={skipOccurrence.bind(null, b.id, day, tz)} className="mb-4">
+                <Button type="submit" variant="secondary" className="w-full">
+                  Skip this day
+                </Button>
+              </form>
+              <MoveOccurrenceForm bookingId={b.id} day={day} defaultTime={timeOfDay(start, tz).hhmm} defaultDuration={b.duration_min} />
+            </>
+          )}
+        </Card>
+      ) : null}
+
+      {day ? <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Every repeat</h2> : null}
       <BookingForm
         bookingId={b.id}
         clients={clients}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
+import { getTimeZone } from "@/lib/timezone";
 import { Card, Empty, PageTitle } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { DogEditForm } from "./dog-edit-form";
@@ -9,6 +10,7 @@ import { HomeworkForm } from "./homework-form";
 export default async function DogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireRole("walker", "operator");
+  const tz = await getTimeZone();
   const { data: dog } = await supabase
     .from("dogs")
     .select("*, client:clients(id, name), dog_notes(id, body, created_at, source), homework(id, title, status, due_at, client_response), incidents(id, severity, what_happened, occurred_at)")
@@ -55,7 +57,7 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
                 <Card className="text-sm">
                   <p className="whitespace-pre-wrap">{n.body}</p>
                   <p className="mt-1 text-xs text-muted">
-                    {fmtDate(n.created_at)}{n.source === "voice" ? " · spoken" : ""}
+                    {fmtDate(n.created_at, tz)}{n.source === "voice" ? " · spoken" : ""}
                   </p>
                 </Card>
               </li>
@@ -72,7 +74,7 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
                 <Card className="text-sm">
                   <p className="text-xs uppercase text-warn">{i.severity}</p>
                   <p>{i.what_happened}</p>
-                  <p className="mt-1 text-xs text-muted">{fmtDate(i.occurred_at)}</p>
+                  <p className="mt-1 text-xs text-muted">{fmtDate(i.occurred_at, tz)}</p>
                 </Card>
               </li>
             ))}

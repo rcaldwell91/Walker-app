@@ -14,8 +14,8 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const monday = mondayOf(isDateKey(week) ? week : today);
   const nextMonday = addDays(monday, 7);
 
-  const bookings = await fetchBookingsForRange(supabase, monday, nextMonday, tz);
-  const occurrences = occurrencesBetween(bookings, monday, nextMonday, tz);
+  const { bookings, exceptions } = await fetchBookingsForRange(supabase, monday, nextMonday, tz);
+  const occurrences = occurrencesBetween(bookings, monday, nextMonday, tz, exceptions);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
   return (
@@ -57,22 +57,23 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
               </div>
               {items.length ? (
                 <ul className="flex flex-col gap-2">
-                  {items.map(({ booking: b, at }) => {
+                  {items.map(({ booking: b, at, originalDay, durationMin, skipped, moved }) => {
                     const client = Array.isArray(b.client) ? b.client[0] : b.client;
                     const service = Array.isArray(b.service) ? b.service[0] : b.service;
                     const dogs = (b.booking_dogs ?? [])
                       .map((bd) => (Array.isArray(bd.dog) ? bd.dog[0] : bd.dog)?.name)
                       .filter(Boolean);
                     return (
-                      <li key={`${b.id}-${at.toISOString()}`}>
-                        <Link href={`/schedule/${b.id}`}>
-                          <Card className="flex items-center gap-3">
+                      <li key={`${b.id}-${originalDay}`} data-occurrence={skipped ? "skipped" : moved ? "moved" : "on"}>
+                        <Link href={`/schedule/${b.id}?on=${originalDay}`}>
+                          <Card className={`flex items-center gap-3 ${skipped ? "opacity-50" : ""}`}>
                             <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: client?.color ?? "var(--border)" }} />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate font-medium">{dogs.join(", ") || client?.name}</p>
+                              <p className={`truncate font-medium ${skipped ? "line-through" : ""}`}>{dogs.join(", ") || client?.name}</p>
                               <p className="truncate text-sm text-muted">
-                                {client?.name} · {service?.name} · {b.duration_min} min
-                                {b.repeat_weekdays?.length ? " · ↻" : ""}
+                                {skipped ? "Skipped this day · " : moved ? "Moved · " : ""}
+                                {client?.name} · {service?.name} · {durationMin} min
+                                {b.repeat_weekdays?.length && !skipped && !moved ? " · ↻" : ""}
                                 {b.status === "needs_coverage" ? " · needs coverage" : ""}
                               </p>
                             </div>

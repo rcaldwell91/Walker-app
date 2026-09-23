@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { fetchGpsLine } from "@/lib/gps";
 import { pathDistanceM } from "@/lib/geo/distance";
+import { splitMinutes } from "@/lib/hours";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -132,12 +133,18 @@ export async function endWalk(walkId: string, _: ActionState, form: FormData): P
   const now = new Date().toISOString();
   await supabase.from("walk_dogs").update({ dropped_off_at: now }).eq("walk_id", walkId).is("dropped_off_at", null);
 
-  const { data: walk } = await supabase.from("walks").select("started_at").eq("id", walkId).single();
-  const walkMinutes = walk?.started_at ? Math.round((Date.now() - new Date(walk.started_at).getTime()) / 60000) : null;
+  // Drive time: walk start → last pickup. Walk time: last pickup → now.
+  // If no pickups were tapped, the whole thing counts as walk time.
+  const { data: walk } = await supabase.from("walks").select("started_at, walk_dogs(picked_up_at)").eq("id", walkId).single();
+  const { driveMinutes, walkMinutes } = splitMinutes(
+    walk?.started_at ?? null,
+    (walk?.walk_dogs ?? []).map((wd) => wd.picked_up_at),
+    now,
+  );
 
   const { error } = await supabase
     .from("walks")
-    .update({ status: "done", ended_at: now, summary, distance_m: distance, walk_minutes: walkMinutes })
+    .update({ status: "done", ended_at: now, summary, distance_m: distance, drive_minutes: driveMinutes, walk_minutes: walkMinutes })
     .eq("id", walkId);
   if (error) return { error: error.message };
   revalidatePath("/home");

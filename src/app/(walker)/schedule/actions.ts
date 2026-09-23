@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { isValidTimeZone, isDateKey, mondayOf, zonedToUtc } from "@/lib/time";
+import { isSeriesDay } from "@/lib/schedule";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -81,4 +82,70 @@ export async function setBookingCancelled(id: string, cancelled: boolean) {
   revalidatePath("/schedule");
   revalidatePath(`/schedule/${id}`);
   revalidatePath("/home");
+}
+
+/** Checks that `day` is a real occurrence of this walker's repeating booking. */
+async function seriesOccurrence(bookingId: string, day: string, tz: string) {
+  const { supabase, user } = await requireRole("walker", "operator");
+  const { data: b } = await supabase
+    .from("bookings")
+    .select("id, walker_id, starts_at, duration_min, repeat_weekdays, repeat_until")
+    .eq("id", bookingId)
+    .eq("walker_id", user.id)
+    .maybeSingle();
+  if (!b || !b.repeat_weekdays?.length || !isDateKey(day) || !isValidTimeZone(tz) || !isSeriesDay(b, day, tz)) return null;
+  return { supabase, user, booking: b };
+}
+
+/** Skip one day of a repeating booking. */
+export async function skipOccurrence(bookingId: string, day: string, tz: string) {
+  const ok = await seriesOccurrence(bookingId, day, tz);
+  if (!ok) return;
+  await ok.supabase.from("booking_exceptions").upsert(
+    { booking_id: bookingId, walker_id: ok.user.id, occurs_on: day, skipped: true, moved_to: null, duration_min: null },
+    { onConflict: "booking_id,occurs_on" },
+  );
+  revalidatePath("/schedule");
+  revalidatePath("/home");
+  revalidatePath(`/schedule/${bookingId}`);
+}
+
+const moveSchema = z.object({
+  date: z.string().refine(isDateKey, "Pick a date"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Pick a time"),
+  duration_min: z.coerce.number().int().min(5).max(1440),
+  tz: z.string().refine(isValidTimeZone, "Unknown time zone"),
+});
+
+/** Move one occurrence of a repeating booking to another date/time. */
+export async function moveOccurrence(bookingId: string, day: string, _: ActionState, form: FormData): Promise<ActionState> {
+  const parsed = moveSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const ok = await seriesOccurrence(bookingId, day, d.tz);
+  if (!ok) return { error: "That day isn't part of this booking's repeats" };
+  const { error } = await ok.supabase.from("booking_exceptions").upsert(
+    {
+      booking_id: bookingId,
+      walker_id: ok.user.id,
+      occurs_on: day,
+      skipped: false,
+      moved_to: zonedToUtc(d.date, Number(d.time.slice(0, 2)), Number(d.time.slice(3)), d.tz).toISOString(),
+      duration_min: d.duration_min,
+    },
+    { onConflict: "booking_id,occurs_on" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/schedule");
+  revalidatePath("/home");
+  redirect(`/schedule?week=${mondayOf(d.date)}`);
+}
+
+/** Put one occurrence back the way the series has it. */
+export async function clearOccurrenceChange(bookingId: string, day: string) {
+  const { supabase } = await requireRole("walker", "operator");
+  await supabase.from("booking_exceptions").delete().eq("booking_id", bookingId).eq("occurs_on", day);
+  revalidatePath("/schedule");
+  revalidatePath("/home");
+  revalidatePath(`/schedule/${bookingId}`);
 }

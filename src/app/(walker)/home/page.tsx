@@ -11,12 +11,12 @@ export default async function TodayPage() {
   const tz = await getTimeZone();
   const today = dateKey(new Date(), tz);
 
-  const [bookings, { data: activeWalk }, { count: clientCount }] = await Promise.all([
+  const [{ bookings, exceptions }, { data: activeWalk }, { count: clientCount }] = await Promise.all([
     fetchBookingsForRange(supabase, today, addDays(today, 1), tz),
     supabase.from("walks").select("id, started_at").eq("status", "in_progress").maybeSingle(),
     supabase.from("clients").select("id", { count: "exact", head: true }),
   ]);
-  const todays = occurrencesBetween(bookings, today, addDays(today, 1), tz);
+  const todays = occurrencesBetween(bookings, today, addDays(today, 1), tz, exceptions).filter((o) => !o.skipped);
 
   return (
     <>
@@ -53,21 +53,21 @@ export default async function TodayPage() {
         </Empty>
       ) : (
         <ul className="flex flex-col gap-2">
-          {todays.map(({ booking: b, at }) => {
+          {todays.map(({ booking: b, at, originalDay, durationMin, moved }) => {
             const client = Array.isArray(b.client) ? b.client[0] : b.client;
             const service = Array.isArray(b.service) ? b.service[0] : b.service;
             const dogs = (b.booking_dogs ?? []).map((bd) => (Array.isArray(bd.dog) ? bd.dog[0] : bd.dog)).filter(Boolean);
             return (
               <li key={`${b.id}-${at.toISOString()}`}>
-                <Link href={`/schedule/${b.id}`}>
+                <Link href={`/schedule/${b.id}?on=${originalDay}`}>
                   <Card className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">
                         {dogs.length ? dogs.map((d) => d!.name).join(", ") : client?.name}
                       </p>
                       <p className="text-sm text-muted">
-                        {service?.name} · {b.duration_min} min
-                        {b.repeat_weekdays?.length ? " · repeats" : ""}
+                        {service?.name} · {durationMin} min
+                        {moved ? " · moved" : b.repeat_weekdays?.length ? " · repeats" : ""}
                         {b.status === "needs_coverage" ? " · needs coverage" : ""}
                       </p>
                     </div>

@@ -6,6 +6,8 @@ import { EVENT_LABELS } from "@/lib/events";
 import { fetchGpsLine } from "@/lib/gps";
 import { getTimeZone } from "@/lib/timezone";
 import { WalkMap } from "./walk-map";
+import { RateWalkForm, TipForm, TipThanks } from "../../relationship-forms";
+import { Stars } from "@/components/score-input";
 
 export default async function ClientWalkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,11 +15,20 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
   const tz = await getTimeZone();
   const { data: walk } = await supabase
     .from("walks")
-    .select("id, status, started_at, ended_at, distance_m, summary, trail:trails(name), service:service_types(name), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name)), walk_events(id, kind, note, at, dog_id), photos(id, storage_path, caption), dog_notes(id, body, created_at, dog_id)")
+    .select("id, status, started_at, ended_at, distance_m, summary, walker:walkers(business_name, tips_enabled, profile:profiles(full_name)), trail:trails(name), service:service_types(name), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name)), walk_events(id, kind, note, at, dog_id), photos(id, storage_path, caption), dog_notes(id, body, created_at, dog_id)")
     .eq("id", id)
     .maybeSingle();
   if (!walk) notFound();
-  const line = await fetchGpsLine(supabase, id);
+  const [line, { data: myRating }, { data: myTip }] = await Promise.all([
+    fetchGpsLine(supabase, id),
+    // Clients can only ever read ratings they gave (target = walker); see RLS.
+    supabase.from("ratings").select("score, comment").eq("walk_id", id).eq("target", "walker").maybeSingle(),
+    supabase.from("tips").select("amount_cents").eq("walk_id", id).neq("status", "cancelled").maybeSingle(),
+  ]);
+  const walker = Array.isArray(walk.walker) ? walk.walker[0] : walk.walker;
+  const walkerProfile = walker && (Array.isArray(walker.profile) ? walker.profile[0] : walker.profile);
+  const walkerName = walker?.business_name || walkerProfile?.full_name || "your walker";
+  const done = walk.status === "done";
 
   const trail = Array.isArray(walk.trail) ? walk.trail[0] : walk.trail;
   const service = Array.isArray(walk.service) ? walk.service[0] : walk.service;
@@ -100,6 +111,28 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
           )}
         </ul>
       </Card>
+      {done ? (
+        <>
+          <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Rate this walk</h2>
+          <Card className="mb-4">
+            {myRating ? (
+              <p data-my-rating={myRating.score}>
+                You rated it <Stars score={myRating.score} />
+                {myRating.comment ? <span className="mt-1 block text-sm text-muted">“{myRating.comment}”</span> : null}
+              </p>
+            ) : (
+              <RateWalkForm walkId={walk.id} walkerName={walkerName} />
+            )}
+          </Card>
+
+          {walker?.tips_enabled || myTip ? (
+            <>
+              <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Leave a tip</h2>
+              <Card>{myTip ? <TipThanks amount={myTip.amount_cents / 100} /> : <TipForm walkId={walk.id} />}</Card>
+            </>
+          ) : null}
+        </>
+      ) : null}
     </>
   );
 }

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Card({ children, className = "", ...rest }: ComponentProps<"div">) {
   return (
-    <div className={`rounded-2xl border border-border bg-card p-4 ${className}`}>{children}</div>
+    <div className={`rounded-2xl border border-border bg-card p-4 ${className}`} {...rest}>
+      {children}
+    </div>
   );
 }
 

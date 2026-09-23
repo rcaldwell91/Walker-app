@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/session";
+import { getTimeZone } from "@/lib/timezone";
 import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { fmtDate, fmtTime, firstName } from "@/lib/format";
 import { HomeworkCard } from "@/components/homework-card";
+import { CheckInForm } from "./relationship-forms";
 
 export default async function ClientHome() {
   const { supabase, profile } = await requireRole("client");
+  const tz = await getTimeZone();
 
   const [{ data: clients }, { data: dogs }, { data: recentWalks }, { data: homework }] = await Promise.all([
-    supabase.from("clients").select("id, intake_completed_at, walker:walkers(business_name, handle, profile:profiles(full_name))"),
+    supabase.from("clients").select("id, intake_completed_at, walker:walkers!clients_walker_id_fkey(business_name, handle, profile:profiles(full_name))"),
     supabase.from("dogs").select("id, name, working_on, progress_summary").eq("active", true).order("name"),
     supabase
       .from("walks")
@@ -18,6 +21,15 @@ export default async function ClientHome() {
       .limit(3),
     supabase.from("homework").select("id, title, instructions, status, due_at, dog:dogs(name)").neq("status", "done").order("created_at", { ascending: false }),
   ]);
+
+  // Works out whether a check-in is due (walker's cadence) and opens it. No cron.
+  const { data: openCheckIns } = await supabase.rpc("open_due_check_ins", { p_tz: tz });
+  const walkerNameFor = (clientId: string) => {
+    const c = (clients ?? []).find((x) => x.id === clientId);
+    const w = c && (Array.isArray(c.walker) ? c.walker[0] : c.walker);
+    const p = w && (Array.isArray(w.profile) ? w.profile[0] : w.profile);
+    return w?.business_name || p?.full_name || "your walker";
+  };
 
   const needsIntake = (clients ?? []).some((c) => !c.intake_completed_at);
   const live = (recentWalks ?? []).find((w) => w.status === "in_progress");
@@ -35,11 +47,15 @@ export default async function ClientHome() {
         </Card>
       ) : null}
 
+      {((openCheckIns ?? []) as { id: string; client_id: string }[]).map((ci) => (
+        <CheckInForm key={ci.id} checkInId={ci.id} walkerName={walkerNameFor(ci.client_id)} />
+      ))}
+
       {live ? (
         <Link href={`/my/walks/${live.id}`} className="mb-4 block">
           <Card className="border-accent bg-accent/10">
             <p className="text-sm font-medium text-accent">Out on a walk now</p>
-            <p className="text-muted">Since {fmtTime(live.started_at)} · tap to follow along</p>
+            <p className="text-muted">Since {fmtTime(live.started_at, tz)} · tap to follow along</p>
           </Card>
         </Link>
       ) : null}
@@ -93,7 +109,7 @@ export default async function ClientHome() {
                     <div>
                       <p className="font-medium">{names.join(", ") || service?.name}</p>
                       <p className="text-sm text-muted">
-                        {fmtDate(w.started_at)} · {fmtTime(w.started_at)}
+                        {fmtDate(w.started_at, tz)} · {fmtTime(w.started_at, tz)}
                         {w.distance_m ? ` · ${(w.distance_m / 1609).toFixed(1)} mi` : ""}
                       </p>
                     </div>

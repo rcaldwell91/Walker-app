@@ -1,10 +1,13 @@
-/** Pass `tz` from server components (the server runs in UTC); client components can omit it. */
-export function fmtTime(iso: string | Date | null | undefined, tz?: string) {
+/**
+ * Always pass the viewer's time zone: `await getTimeZone()` in server code,
+ * `useTimeZone()` in client components. The server runs in UTC.
+ */
+export function fmtTime(iso: string | Date | null | undefined, tz: string) {
   if (!iso) return "";
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: tz });
 }
 
-export function fmtDate(iso: string | Date | null | undefined, tz?: string) {
+export function fmtDate(iso: string | Date | null | undefined, tz: string) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", timeZone: tz });
 }

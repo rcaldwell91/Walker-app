@@ -5,6 +5,10 @@ import { Card, ErrorText, LinkButton, PageTitle } from "@/components/ui";
 import { InviteLink } from "@/components/invite-link";
 import { AddDogForm } from "@/components/add-dog-form";
 import { regenerateInvite } from "../actions";
+import { RateClientForm } from "./rate-client-form";
+import { Stars } from "@/components/score-input";
+import { fmtDate } from "@/lib/format";
+import { getTimeZone } from "@/lib/timezone";
 
 export default async function ClientDetailPage({
   params,
@@ -22,6 +26,13 @@ export default async function ClientDetailPage({
     .eq("id", id)
     .maybeSingle();
   if (!client) notFound();
+  const tz = await getTimeZone();
+  const { data: myRatings } = await supabase
+    .from("ratings")
+    .select("id, score, comment, created_at")
+    .eq("client_id", client.id)
+    .eq("target", "client")
+    .order("created_at", { ascending: false });
 
   const invite = (client.client_invites ?? []).find((i) => !i.redeemed_at);
   const inviteUrl = invite ? `${process.env.NEXT_PUBLIC_APP_URL}/join/${invite.token}` : null;
@@ -81,6 +92,22 @@ export default async function ClientDetailPage({
         {!client.phone && !client.email && !client.home_access_notes ? (
           <p className="text-muted">Nothing here yet.</p>
         ) : null}
+      </Card>
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Your private rating</h2>
+      <Card className="flex flex-col gap-3">
+        <p className="text-xs text-muted">Only you see this. {client.name.split(" ")[0]} never will.</p>
+        {myRatings?.length ? (
+          <ul className="flex flex-col gap-1 text-sm" aria-label="Your ratings of this client">
+            {myRatings.map((r) => (
+              <li key={r.id}>
+                <Stars score={r.score} /> <span className="text-muted">{fmtDate(r.created_at, tz)}</span>
+                {r.comment ? <span className="block text-muted">“{r.comment}”</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <RateClientForm clientId={client.id} />
       </Card>
 
       <div className="mt-4 flex gap-2">
