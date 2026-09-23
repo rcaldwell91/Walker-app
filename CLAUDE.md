@@ -59,6 +59,13 @@ Free and keyless for now. Each piece sits behind one file so Mapbox or Google ca
 On a scratch Postgres (not the real project):
 `createdb walker_test`, then `psql -d walker_test -f` each of `supabase/tests/00_supabase_stub.sql`, every file in `supabase/migrations/` in order, and `supabase/tests/01_rls_smoke.sql`. It rolls back and ends with "RLS smoke test passed".
 
+## Deployment
+
+- **Live:** https://walker-app-gamma.vercel.app (Vercel project `walker-app`, linked to this GitHub repo). Supabase project `dztkbrepjfhhauuufpyk`.
+- Env vars live in Vercel (Project → Settings → Environment Variables); the service role key and VAPID private key are "sensitive". `NEXT_PUBLIC_*` values are baked in at build time, so redeploy after changing them.
+- `NEXT_PUBLIC_APP_URL` builds invite links; `VAPID_SUBJECT` is the app URL (push services want a real contact URL).
+- Migrations are applied to Supabase by hand (in order), not by the deploy.
+
 ## Commands
 
 - `npm run dev` — local server
