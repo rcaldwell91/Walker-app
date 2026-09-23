@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { homeFor, type Role } from "@/lib/session";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -16,12 +17,15 @@ export async function login(_: AuthState, form: FormData): Promise<AuthState> {
   const parsed = loginSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
   if (error) return { error: "Email or password didn't match." };
-  redirect(parsed.data.next && parsed.data.next.startsWith("/") ? parsed.data.next : "/home");
+  const next = parsed.data.next;
+  if (next && next.startsWith("/") && !next.startsWith("//")) redirect(next);
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+  redirect(homeFor(profile?.role as Role | undefined));
 }
 
 const signupSchema = z.object({

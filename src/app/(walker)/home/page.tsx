@@ -7,6 +7,7 @@ import { addDays, dateKey, fmtDateKey } from "@/lib/time";
 import { fetchBookingsForRange, occurrencesBetween } from "@/lib/schedule";
 import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
 import { CoverBadge, CoveringCard, IncomingCoverCard } from "../cover-cards";
+import { NotificationsInbox } from "@/components/notifications-inbox";
 
 export default async function TodayPage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
@@ -33,6 +34,8 @@ export default async function TodayPage() {
       <PageTitle sub={fmtDateKey(today, { weekday: "long", month: "long", day: "numeric" })}>
         Hey {firstName(profile?.full_name || "there")}
       </PageTitle>
+
+      <NotificationsInbox supabase={supabase} tz={tz} />
 
       {incoming.map((r) => (
         <IncomingCoverCard key={r.id} r={r} tz={tz} />

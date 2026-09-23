@@ -2,10 +2,14 @@ import Link from "next/link";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
 import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
-import { fmtDate, fmtTime, firstName } from "@/lib/format";
+import { cents, fmtDate, fmtTime, firstName } from "@/lib/format";
 import { HomeworkCard } from "@/components/homework-card";
 import { CheckInForm } from "./relationship-forms";
 import { ApprovalPrompt, type SquadChoice } from "./backup-walkers";
+import { NotificationsInbox } from "@/components/notifications-inbox";
+import { notifyOpenedCheckIns } from "@/lib/notify";
+import { dateKey } from "@/lib/time";
+import { INVOICE_FIELDS, summarize } from "@/lib/billing";
 
 export default async function ClientHome() {
   const { supabase, profile } = await requireRole("client");
@@ -24,11 +28,16 @@ export default async function ClientHome() {
   ]);
 
   // Works out whether a check-in is due (walker's cadence) and opens it. No cron.
-  const [{ data: openCheckIns }, { data: choices }] = await Promise.all([
+  const [{ data: openCheckIns }, { data: choices }, { data: invoiceRows }] = await Promise.all([
     supabase.rpc("open_due_check_ins", { p_tz: tz }),
     supabase.rpc("client_squad_choices"),
+    supabase.from("invoices").select(INVOICE_FIELDS).eq("status", "sent"),
   ]);
+  const open = summarize(invoiceRows ?? [], dateKey(new Date(), tz)).filter((i) => i.balance > 0);
+  const balance = open.reduce((n, i) => n + i.balance, 0);
+  const overdue = open.some((i) => i.overdue);
   const asks = ((choices ?? []) as SquadChoice[]).filter((c) => c.asked && !c.approved);
+  await notifyOpenedCheckIns(openCheckIns);
   const walkerNameFor = (clientId: string) => {
     const c = (clients ?? []).find((x) => x.id === clientId);
     const w = c && (Array.isArray(c.walker) ? c.walker[0] : c.walker);
@@ -52,6 +61,8 @@ export default async function ClientHome() {
         </Card>
       ) : null}
 
+      <NotificationsInbox supabase={supabase} tz={tz} />
+
       {asks.map((c) => (
         <ApprovalPrompt key={`${c.client_id}-${c.coverage_walker_id}`} c={c} walkerName={walkerNameFor(c.client_id)} />
       ))}
@@ -59,6 +70,18 @@ export default async function ClientHome() {
       {((openCheckIns ?? []) as { id: string; client_id: string }[]).map((ci) => (
         <CheckInForm key={ci.id} checkInId={ci.id} walkerName={walkerNameFor(ci.client_id)} />
       ))}
+
+      {balance ? (
+        <Link href={open.length === 1 ? `/my/invoices/${open[0].id}` : "/my/more#invoices"} className="mb-4 block">
+          <Card className={`flex items-center justify-between ${overdue ? "border-warn" : ""}`}>
+            <span>
+              <span className="block text-sm text-muted">Balance{overdue ? " · overdue" : ""}</span>
+              <span className="text-xl font-semibold" data-client-balance={balance}>{cents(balance)}</span>
+            </span>
+            <span className="text-sm text-accent">See invoice{open.length === 1 ? "" : "s"} ›</span>
+          </Card>
+        </Link>
+      ) : null}
 
       {live ? (
         <Link href={`/my/walks/${live.id}`} className="mb-4 block">

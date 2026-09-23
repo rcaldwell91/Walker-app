@@ -2,15 +2,19 @@ import { requireRole } from "@/lib/session";
 import { logout } from "@/app/(auth)/actions";
 import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { Stars } from "@/components/score-input";
-import { fmtDate } from "@/lib/format";
+import Link from "next/link";
+import { cents, fmtDate } from "@/lib/format";
+import { dateKey, fmtDateKey } from "@/lib/time";
+import { INVOICE_FIELDS, statusLabel, summarize } from "@/lib/billing";
 import { getTimeZone } from "@/lib/timezone";
 import { SuggestionForm } from "../relationship-forms";
+import { NotificationSettings } from "@/components/notification-settings";
 import { BackupWalkerList, type SquadChoice } from "../backup-walkers";
 
 export default async function MyMorePage() {
   const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
-  const [{ data: rows }, { data: checkIns }, { data: choices }] = await Promise.all([
+  const [{ data: rows }, { data: checkIns }, { data: choices }, { data: invoiceRows }] = await Promise.all([
     supabase
       .from("clients")
       .select("id, status, walker:walkers!clients_walker_id_fkey(id, business_name, suggestion_box_enabled, profile:profiles(full_name))"),
@@ -21,7 +25,10 @@ export default async function MyMorePage() {
       .order("responded_at", { ascending: false })
       .limit(20),
     supabase.rpc("client_squad_choices"),
+    // RLS: only this client's invoices, only once the walker has sent them.
+    supabase.from("invoices").select(INVOICE_FIELDS).order("created_at", { ascending: false }).limit(50),
   ]);
+  const invoices = summarize(invoiceRows ?? [], dateKey(new Date(), tz));
 
   const walkers = (rows ?? []).map((r) => {
     const w = Array.isArray(r.walker) ? r.walker[0] : r.walker;
@@ -41,6 +48,28 @@ export default async function MyMorePage() {
           Update your details and dogs
         </LinkButton>
       </Card>
+
+      <h2 id="invoices" className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Invoices</h2>
+      {invoices.length ? (
+        <ul className="mb-6 flex flex-col divide-y divide-border rounded-2xl border border-border bg-card">
+          {invoices.map((i) => (
+            <li key={i.id}>
+              <Link href={`/my/invoices/${i.id}`} className="flex items-center justify-between px-4 py-3 text-sm" data-client-invoice={i.number}>
+                <span>
+                  #{i.number} · {fmtDateKey(i.period_start)} – {fmtDateKey(i.period_end)}
+                  <span className="block text-xs text-muted">{i.due_on ? `Due ${fmtDateKey(i.due_on)}` : ""}</span>
+                </span>
+                <span className="text-right">
+                  {cents(i.total)}
+                  <span className={`block text-xs ${i.overdue ? "text-warn" : "text-muted"}`}>{statusLabel(i)}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mb-6 text-sm text-muted">Invoices from your walker show up here.</p>
+      )}
 
       <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Suggestion box</h2>
       {walkers.filter((w) => w.active && w.boxOn).length ? (
@@ -91,6 +120,9 @@ export default async function MyMorePage() {
       ) : (
         <Empty>Your walker hasn&apos;t added anyone to their squad yet.</Empty>
       )}
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Notifications</h2>
+      <NotificationSettings role="client" off={profile?.notify_off ?? []} />
 
       <form action={logout} className="mt-8">
         <button className="text-sm text-muted underline">Log out</button>

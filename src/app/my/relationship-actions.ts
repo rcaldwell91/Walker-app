@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
+import { notify } from "@/lib/notify";
 
 export type FormState = { error?: string; done?: number } | undefined;
 
@@ -132,7 +133,7 @@ export async function sendClientMessage(walkerId: string, _: FormState, form: Fo
   const { supabase, user } = await requireRole("client");
   const { data: me } = await supabase
     .from("clients")
-    .select("id")
+    .select("id, name")
     .eq("walker_id", walkerId)
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -141,6 +142,7 @@ export async function sendClientMessage(walkerId: string, _: FormState, form: Fo
     .from("messages")
     .insert({ walker_id: walkerId, client_id: me.id, sender_id: user.id, kind: "custom", body });
   if (error) return { error: error.message };
+  await notify([walkerId], { kind: "message", title: `Message from ${me.name}`, body: body.slice(0, 140), url: `/messages/${me.id}` });
   revalidatePath("/my/messages");
   return { done: Date.now() };
 }

@@ -13,8 +13,9 @@ const items = [
   { href: "/squad", label: "Coverage squad", sub: "Walkers who can cover for you" },
   { href: "/incidents", label: "Incident reports" },
   { href: "/check-ins", label: "Client check-ins and suggestions", sub: "Check-ins, suggestion box, ratings" },
-  { href: "/community", label: "Community", sub: "Alerts, forums, meetups" },
-  { href: "/resources", label: "Resources", sub: "Tips and videos" },
+  { href: "/money", label: "Money", sub: "Invoices, payments, tips" },
+  { href: "/community", label: "Community", sub: "Coming in phase two" },
+  { href: "/resources", label: "Resources", sub: "Coming in phase two" },
   { href: "/billing", label: "Plan and fees" },
 ];
 

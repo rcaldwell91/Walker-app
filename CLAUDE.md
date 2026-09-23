@@ -10,14 +10,19 @@ Read `docs/BLUEPRINT.md` first. It has the feature list grouped by build stage a
 - **One tap wherever possible.** Walkers use this one-handed on a trail with spotty signal. Big buttons, no confirm dialogs for logging, queue writes when offline.
 - **Voice first.** Anywhere a walker types more than a few words, use `VoiceInput`.
 - **Walker-facing copy treats walkers with trust.** Every button routes somewhere.
-- **Finish everything buildable before configuring external services** (Stripe, Twilio, maps API keys, DNS). Model the data now, wire the service later.
+- **Finish everything buildable before configuring external services** (Stripe, maps API keys, DNS). Model the data now, wire the service later.
+- **No SMS.** All messaging is in-app, with Web Push notifications. Don't add Twilio or any SMS provider.
+- **No platform fee.** What we charge walkers is undecided; don't build it (see blueprint, Pricing).
 - **All features for every walker.** Pricing scales with usage, not features. Never gate a feature by plan.
 - **Migrations are append-only** once applied to a real project. New file, higher number.
+- **Notify through `notify()`** (`src/lib/notify.ts`, server only): it writes the in-app notification and sends Web Push, respecting each person's per-kind settings. New kinds go in `src/lib/push-kinds.ts`. A failed push never fails the action.
+- **Billing is walker → client.** Finished walks become invoice lines by trigger, billed through the client's own walker (never the covering walker). Drafts are made on page load (`draftDueInvoices`), no cron. Sent invoices are locked; add card payments and a platform-fee line by extending the enums (see 0013), not new tables.
+- **Operator is never self-assigned.** The operator role comes only from `app_metadata` set with the service role. Signup metadata can pick walker or client only.
 - **Before launch: turn "Confirm email" back on** in Supabase (Authentication → Sign In / Providers → Email). It's off for local testing only.
 
 ## Build stages (see blueprint)
 
-1 Foundation · 2 Getting people in · 3 The walk · 4 Schedule, routes, GPS · 5 Client relationship · 6 Coverage squad · 7 Community and safety · 8 Money
+1 Foundation · 2 Getting people in · 3 The walk · 4 Schedule, routes, GPS · 5 Client relationship · 6 Coverage squad · 7 Home screen and push · 8 Money (walkers billing clients) · Phase two: community and safety, marketplace
 
 Placeholder pages for later stages use `<ComingSoon stage={n}>`. Replace them as you build.
 

@@ -11,10 +11,23 @@ export async function getSession() {
   if (!user) return null;
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, full_name, phone, avatar_url")
+    .select("id, role, full_name, phone, avatar_url, notify_off, app_installed_at, install_guide_dismissed_at")
     .eq("id", user.id)
     .single();
-  return { supabase, user, profile: profile as { id: string; role: Role; full_name: string; phone: string | null; avatar_url: string | null } | null };
+  return {
+    supabase,
+    user,
+    profile: profile as {
+      id: string;
+      role: Role;
+      full_name: string;
+      phone: string | null;
+      avatar_url: string | null;
+      notify_off: string[];
+      app_installed_at: string | null;
+      install_guide_dismissed_at: string | null;
+    } | null,
+  };
 }
 
 export async function requireRole(...roles: Role[]) {

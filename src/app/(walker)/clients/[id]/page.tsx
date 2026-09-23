@@ -10,6 +10,11 @@ import { askClientApproval } from "../../coverage-actions";
 import { Stars } from "@/components/score-input";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
+import { dateKey, fmtDateKey } from "@/lib/time";
+import { cents } from "@/lib/format";
+import { INVOICE_FIELDS, SCHEDULE_LABEL, draftDueInvoices, statusLabel, summarize, type Schedule } from "@/lib/billing";
+import { billClientNow } from "../../money/actions";
+import { ScheduleSelect } from "./schedule-select";
 
 export default async function ClientDetailPage({
   params,
@@ -39,6 +44,14 @@ export default async function ClientDetailPage({
   );
   const approvedIds = new Set((approvals ?? []).map((a) => a.coverage_walker_id));
   const askedIds = new Set((asks ?? []).map((a) => a.coverage_walker_id));
+  await draftDueInvoices(supabase, user.id, tz, client.id);
+  const [{ data: invoiceRows }, { data: unbilled }] = await Promise.all([
+    supabase.from("invoices").select(INVOICE_FIELDS).eq("client_id", client.id).eq("walker_id", user.id).order("created_at", { ascending: false }).limit(24),
+    supabase.from("invoice_lines").select("amount_cents").eq("client_id", client.id).eq("walker_id", user.id).is("invoice_id", null),
+  ]);
+  const invoices = summarize(invoiceRows ?? [], dateKey(new Date(), tz));
+  const unbilledTotal = (unbilled ?? []).reduce((n, l) => n + l.amount_cents, 0);
+  const owed = invoices.filter((i) => i.status === "sent").reduce((n, i) => n + i.balance, 0);
   const { data: myRatings } = await supabase
     .from("ratings")
     .select("id, score, comment, created_at")
@@ -103,6 +116,38 @@ export default async function ClientDetailPage({
         ) : null}
         {!client.phone && !client.email && !client.home_access_notes ? (
           <p className="text-muted">Nothing here yet.</p>
+        ) : null}
+      </Card>
+
+      <h2 id="billing" className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Billing</h2>
+      <Card className="flex flex-col gap-3">
+        <ScheduleSelect clientId={client.id} value={client.billing_schedule as Schedule} labels={SCHEDULE_LABEL} />
+        <p className="text-sm">
+          <span data-client-owed={owed}>{cents(owed)} owed</span>
+          <span className="text-muted"> · {cents(unbilledTotal)} not invoiced yet</span>
+        </p>
+        {unbilledTotal ? (
+          <form action={billClientNow.bind(null, client.id)}>
+            <Button type="submit" variant="secondary" className="w-full">
+              Bill now ({cents(unbilledTotal)})
+            </Button>
+          </form>
+        ) : null}
+        {invoices.length ? (
+          <ul className="flex flex-col divide-y divide-border text-sm">
+            {invoices.map((i) => (
+              <li key={i.id}>
+                <Link href={`/money/invoices/${i.id}`} className="flex justify-between py-2">
+                  <span>
+                    #{i.number} · {fmtDateKey(i.period_start)} – {fmtDateKey(i.period_end)}
+                  </span>
+                  <span className={i.overdue ? "text-warn" : ""}>
+                    {cents(i.total)} {statusLabel(i)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         ) : null}
       </Card>
 

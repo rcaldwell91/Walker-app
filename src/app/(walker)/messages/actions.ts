@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
+import { clientProfileId, notify } from "@/lib/notify";
 
 export type MessageState = { error?: string; sentAt?: number } | undefined;
 
@@ -18,6 +19,13 @@ export async function sendMessage(clientId: string, _: MessageState, form: FormD
     body,
   });
   if (error) return { error: error.message };
+  const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  await notify([await clientProfileId(clientId)], {
+    kind: "message",
+    title: `Message from ${me?.full_name ?? "your walker"}`,
+    body: body.slice(0, 140),
+    url: "/my/messages",
+  });
   revalidatePath(`/messages/${clientId}`);
   return { sentAt: Date.now() };
 }

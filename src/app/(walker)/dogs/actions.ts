@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
+import { clientProfileId, notify } from "@/lib/notify";
 
 export type ActionState = { error?: string; ok?: boolean } | undefined;
 
@@ -31,6 +32,15 @@ export async function assignHomework(dogId: string, _: ActionState, form: FormDa
     due_at: String(form.get("due_at") ?? "") || null,
   });
   if (error) return { error: error.message };
+  const { data: dog } = await supabase.from("dogs").select("name, client_id").eq("id", dogId).maybeSingle();
+  if (dog) {
+    await notify([await clientProfileId(dog.client_id)], {
+      kind: "homework",
+      title: `New homework for ${dog.name}`,
+      body: title,
+      url: `/my/dogs/${dogId}`,
+    });
+  }
   revalidatePath(`/dogs/${dogId}`);
   return { ok: true };
 }

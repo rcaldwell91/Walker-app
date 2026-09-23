@@ -6,6 +6,15 @@ import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
 import { addDays, isDateKey } from "@/lib/time";
 import { isSeriesDay, occurrencesBetween, type BookingException } from "@/lib/schedule";
+import { clientProfileId, notify } from "@/lib/notify";
+import { fmtDate, fmtTime } from "@/lib/format";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+type CoverRow = { id: string; from_walker_id: string; to_walker_id: string; client_id: string; client_name: string; dog_names: string | null; starts_at: string; from_name: string; to_name: string; status: string };
+async function coverRow(supabase: SupabaseClient, id: string) {
+  const { data } = await supabase.rpc("my_coverage");
+  return ((data ?? []) as CoverRow[]).find((r) => r.id === id) ?? null;
+}
 
 export type CoverState = { error?: string; done?: number } | undefined;
 
@@ -65,6 +74,13 @@ export async function requestCoverage(bookingId: string, day: string, _: CoverSt
     message,
   });
   if (error) return { error: /row-level security/i.test(error.message) ? "The client hasn't approved that walker yet" : error.message };
+  const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  await notify([toWalker], {
+    kind: "coverage",
+    title: `${me?.full_name ?? "Your squad"} needs coverage`,
+    body: `${fmtDate(occ.at, tz)} at ${fmtTime(occ.at, tz)}${message ? ` · “${message}”` : ""}`,
+    url: "/home",
+  });
   refresh();
   revalidatePath(`/schedule/${bookingId}`);
   return { done: Date.now() };
@@ -72,7 +88,27 @@ export async function requestCoverage(bookingId: string, day: string, _: CoverSt
 
 export async function respondToCoverage(requestId: string, accept: boolean) {
   const { supabase } = await requireRole("walker");
+  const tz = await getTimeZone();
   const { error } = await supabase.from("coverage_requests").update({ status: accept ? "accepted" : "declined" }).eq("id", requestId);
+  const r = error ? null : await coverRow(supabase, requestId);
+  if (r) {
+    const when = `${fmtDate(r.starts_at, tz)} at ${fmtTime(r.starts_at, tz)}`;
+    await notify([r.from_walker_id], {
+      kind: "coverage",
+      title: accept ? `${r.to_name} is covering` : `${r.to_name} can't cover`,
+      body: `${r.dog_names ?? "Walk"} · ${r.client_name} · ${when}`,
+      url: `/cover/${r.id}`,
+    });
+    // The database already posted the client's notice as a message; push it.
+    if (accept) {
+      await notify([await clientProfileId(r.client_id)], {
+        kind: "message",
+        title: "Your walk is covered",
+        body: `${r.to_name} is covering ${r.dog_names ?? "your dog"}'s walk on ${fmtDate(r.starts_at, tz)}.`,
+        url: "/my/messages",
+      });
+    }
+  }
   refresh();
   revalidatePath(`/cover/${requestId}`);
   if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(error.message)}`);
@@ -80,8 +116,20 @@ export async function respondToCoverage(requestId: string, accept: boolean) {
 
 /** Either walker can cancel an open or accepted cover. The day goes back to needing coverage. */
 export async function cancelCoverage(requestId: string) {
-  const { supabase } = await requireRole("walker");
+  const { supabase, user } = await requireRole("walker");
+  const tz = await getTimeZone();
+  const before = await coverRow(supabase, requestId);
   const { error } = await supabase.from("coverage_requests").update({ status: "cancelled" }).eq("id", requestId);
+  if (!error && before && (before.status === "accepted" || before.status === "open")) {
+    const other = before.from_walker_id === user.id ? before.to_walker_id : before.from_walker_id;
+    const who = before.from_walker_id === user.id ? before.from_name : before.to_name;
+    await notify([other], {
+      kind: "coverage",
+      title: before.status === "accepted" ? "Cover cancelled" : "Coverage request withdrawn",
+      body: `${who} cancelled ${before.dog_names ?? "the walk"} · ${fmtDate(before.starts_at, tz)} at ${fmtTime(before.starts_at, tz)}`,
+      url: `/cover/${before.id}`,
+    });
+  }
   refresh();
   revalidatePath(`/cover/${requestId}`);
   if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(error.message)}`);

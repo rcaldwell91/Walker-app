@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/session";
 import { fetchGpsLine } from "@/lib/gps";
 import { pathDistanceM } from "@/lib/geo/distance";
 import { splitMinutes } from "@/lib/hours";
+import { clientProfileId, notify, walkAudience } from "@/lib/notify";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -105,6 +106,15 @@ export async function sendStatus(walkId: string, kind: "on_my_way" | "here" | "p
     body: bodies[kind],
     eta_minutes: etaMinutes ?? null,
   });
+  if (kind !== "picked_up") {
+    const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    await notify([await clientProfileId(clientId)], {
+      kind: "status",
+      title: me?.full_name ?? "Your walker",
+      body: bodies[kind],
+      url: `/my/walks/${walkId}`,
+    });
+  }
   revalidatePath(`/walk/${walkId}`);
 }
 
@@ -147,6 +157,10 @@ export async function endWalk(walkId: string, _: ActionState, form: FormData): P
     .update({ status: "done", ended_at: now, summary, distance_m: distance, drive_minutes: driveMinutes, walk_minutes: walkMinutes })
     .eq("id", walkId);
   if (error) return { error: error.message };
+  // Report ready: owners get it; on a covered walk, so does the dogs' own walker.
+  const { owners, otherWalkers } = await walkAudience(walkId);
+  await notify(owners, { kind: "report", title: "Walk report ready", body: summary?.slice(0, 140) ?? "See how the walk went.", url: `/my/walks/${walkId}` });
+  await notify(otherWalkers, { kind: "report", title: "Covered walk report ready", body: "See how the covered walk went.", url: `/report/${walkId}` });
   revalidatePath("/home");
   redirect(`/walk/${walkId}/done`);
 }

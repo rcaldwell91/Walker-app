@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/session";
 import { Card, PageTitle } from "@/components/ui";
 import { ProfileForm } from "./profile-form";
 import { AvatarUpload, BackgroundCheckUpload } from "./uploads";
+import { NotificationSettings } from "@/components/notification-settings";
 
 export default async function ProfilePage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
@@ -69,6 +70,9 @@ export default async function ProfilePage() {
         }}
         services={services}
       />
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Notifications</h2>
+      <NotificationSettings role="walker" off={profile?.notify_off ?? []} />
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Background check</h2>
       <Card>

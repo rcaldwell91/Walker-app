@@ -28,7 +28,7 @@ Everything below is in scope. It's grouped by build stage so we always have some
 ### Stage 1 — Foundation
 - Database schema, row-level security, storage buckets
 - Operator, walker, client, dog, service-type, and pricing tables
-- Both pricing models modeled from day one (see Pricing)
+- (Platform pricing is undecided; see Pricing. Nothing about it is built.)
 
 ### Stage 2 — Getting people in
 - Walker self-serve signup, login, profile page (bio, photo, services, rates, background-check proof upload)
@@ -49,7 +49,7 @@ Everything below is in scope. It's grouped by build stage so we always have some
 - **One-tap walk setup**: pick the dogs, pick the trail, best pickup route is calculated. Suggests trails near your end point.
 - **Client and trail map**: color-coded, grouped
 - **GPS + timer**: starts at pickup, stops at drop-off. Clients see the trail, distance, and the full paid time. Walkers get drive-time and hours records.
-- **One-tap client messages**: "On my way" with live ETA, "I'm here", "Dropped off"
+- **One-tap client messages**: "On my way" with live ETA, "I'm here", "Dropped off". In-app, with a push notification (no SMS)
 
 ### Stage 5 — Client relationship
 - **Check-ins** on the walker's chosen cadence: satisfaction with walker and app, dog progress, what they're doing at home, requests
@@ -62,46 +62,53 @@ Everything below is in scope. It's grouped by build stage so we always have some
 - A client pre-approves specific coverage walkers (keys, home access)
 - When a walker is sick or away, an approved squad member takes the walk and the client is told
 
-### Stage 7 — Community and safety
-- **Live alerts**: one tap to report fires, coyotes, rattlesnakes, accidents; nearby walkers see them
-- **Misconduct reports** about other walkers in the network, reviewed by the operator
-- **Forums**: trail recommendations, training help, peer support
-- **Meetups**: plan routes together, walk with a friend
-- **Resource library**: researched tips and videos for being a better walker (Vera to review)
+### Stage 7 — On the home screen, with notifications
+- Installable web app (home screen icon, full screen), with a step-by-step "Add to Home Screen" walkthrough for iPhone and Android
+- **Push notifications** (Web Push, no paid service) for messages, walk updates, reports, homework, check-ins, coverage, invoices and payments; each type can be turned off
+- **All messaging is in-app with push.** No SMS, no Twilio.
 
-### Stage 8 — Money
-- Walkers set their rates per service
-- Platform pricing (see below) — modeled now, billing wired up when Stripe is set up
-- Paid "ask an expert" — later
+### Stage 8 — Money (walkers billing their own clients)
+- Walkers set their rates per service; each finished walk becomes a billable line (covered walks bill through the regular walker)
+- Per-client billing schedule (per walk, weekly, monthly); invoices drafted automatically for the finished period, reviewed and sent by the walker, delivered in-app
+- Walkers record payments received (cash, Venmo, Zelle, check, other), including partial payments; overdue after the walker's net days
+- Money page: outstanding by client, paid this month, tips, CSV export
+- Card payments later ("Pay by card — coming soon"); tables leave room for it and for a separate platform-fee line
+- Operator screen: walkers, background-check verification, pause/suspend, tips
 
-### Later phases (not now)
+### Phase two (not now)
+- **Community and safety**
+  - Live alerts: one tap to report fires, coyotes, rattlesnakes, accidents; nearby walkers see them
+  - Misconduct reports about other walkers in the network, reviewed by the operator
+  - Forums: trail recommendations, training help, peer support
+  - Meetups: plan routes together, walk with a friend
+  - Resource library: researched tips and videos for being a better walker (Vera to review)
 - Marketplace where clients browse and hire walkers, with walker performance data as the selling point
 - Background checks run by the platform (v1 only lets walkers upload proof)
+- Paid "ask an expert"
 
 ---
 
-## Pricing
+## Pricing (what we charge walkers)
 
-Every walker gets every feature. Price scales with usage, not features.
+**Undecided. Don't build any platform fee yet.** Every walker gets every feature either way.
 
-Two models, both built into the data model so either can be switched on:
+Ideas on the table, for when it's decided:
 
 1. **Fee on top.** Walker sets their rate; the platform adds its percentage on top, so the client pays it. Walker keeps their full rate.
 2. **Percentage of earnings.** Platform takes a percentage of what the walker earns.
+3. Either way, possibly **capped at a flat monthly amount** ($20–50/month floated as a gut check).
 
-Either way, the percentage is **capped at a flat monthly amount**. Once a walker hits the cap, that's all they pay that month. Low-volume walkers pay a little; busy walkers pay a predictable flat fee.
-
-Numbers still to decide. $20–50/month floated as a gut check.
+The early `platform_pricing` / `walker_pricing` / `walker_fee_ledger` tables from migration 0001 are unused placeholders. Invoices leave room for a separate platform-fee line later.
 
 ---
 
 ## Rules carried over from LaborMoves
-- Finish everything buildable before signing up for or paying for external services (Stripe, Twilio, maps API keys, DNS)
+- Finish everything buildable before signing up for or paying for external services (Stripe, maps API keys, DNS). No SMS provider at all
 - Walker-facing copy treats walkers with trust, not suspicion. Every button routes somewhere.
 - Keep it simple on the trail: one tap wherever possible, works with spotty service
 
 ## Open questions
 - App name
-- Pricing numbers and cap
+- Platform pricing: whether to charge, which model, numbers and cap
 - Whether photos should delete from the phone after upload (needs a native app or a manual step; a web app can't delete from the camera roll)
 - Maps provider (Mapbox vs Google) — pick when we wire up Stage 4

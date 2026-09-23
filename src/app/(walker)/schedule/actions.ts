@@ -5,7 +5,46 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { isValidTimeZone, isDateKey, mondayOf, zonedToUtc } from "@/lib/time";
-import { isSeriesDay } from "@/lib/schedule";
+import { isSeriesDay, occurrencesBetween } from "@/lib/schedule";
+import { addDays, fmtDateKey } from "@/lib/time";
+import { getTimeZone } from "@/lib/timezone";
+import { notify } from "@/lib/notify";
+import { fmtDate, fmtTime } from "@/lib/format";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * After one day of a booking changes, bring that day's covers along (the
+ * database moves or cancels them) and tell each covering walker in-app.
+ */
+async function followCovers(
+  supabase: SupabaseClient,
+  booking: { id: string },
+  day: string,
+  change: { skipped: true } | { startsAt: Date; durationMin: number },
+  tz: string,
+  fromName: string,
+) {
+  const skipped = "skipped" in change;
+  const { data } = await supabase.rpc("reschedule_coverage", {
+    p_booking: booking.id,
+    p_occurs_on: day,
+    p_starts_at: skipped ? null : change.startsAt.toISOString(),
+    p_duration: skipped ? null : change.durationMin,
+    p_skipped: skipped,
+  });
+  const when = "startsAt" in change ? `${fmtDate(change.startsAt, tz)} at ${fmtTime(change.startsAt, tz)}` : "";
+  for (const r of (data ?? []) as { request_id: string; to_walker_id: string; status: string; change: string }[]) {
+    await notify([r.to_walker_id], {
+      kind: "coverage",
+      title: r.change === "cancelled" ? "Cover cancelled" : "Covered walk moved",
+      body:
+        r.change === "cancelled"
+          ? `${fromName} skipped ${fmtDateKey(day)}, so the cover is off.`
+          : `${fromName} moved the ${fmtDateKey(day)} walk to ${when}.`,
+      url: `/cover/${r.request_id}`,
+    });
+  }
+}
 
 export type ActionState = { error?: string } | undefined;
 
@@ -97,6 +136,11 @@ async function seriesOccurrence(bookingId: string, day: string, tz: string) {
   return { supabase, user, booking: b };
 }
 
+async function myName(supabase: SupabaseClient, id: string) {
+  const { data } = await supabase.from("profiles").select("full_name").eq("id", id).maybeSingle();
+  return data?.full_name || "Your squad member";
+}
+
 /** Skip one day of a repeating booking. */
 export async function skipOccurrence(bookingId: string, day: string, tz: string) {
   const ok = await seriesOccurrence(bookingId, day, tz);
@@ -105,6 +149,7 @@ export async function skipOccurrence(bookingId: string, day: string, tz: string)
     { booking_id: bookingId, walker_id: ok.user.id, occurs_on: day, skipped: true, moved_to: null, duration_min: null },
     { onConflict: "booking_id,occurs_on" },
   );
+  await followCovers(ok.supabase, ok.booking, day, { skipped: true }, tz, await myName(ok.supabase, ok.user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   revalidatePath(`/schedule/${bookingId}`);
@@ -124,18 +169,20 @@ export async function moveOccurrence(bookingId: string, day: string, _: ActionSt
   const d = parsed.data;
   const ok = await seriesOccurrence(bookingId, day, d.tz);
   if (!ok) return { error: "That day isn't part of this booking's repeats" };
+  const movedTo = zonedToUtc(d.date, Number(d.time.slice(0, 2)), Number(d.time.slice(3)), d.tz);
   const { error } = await ok.supabase.from("booking_exceptions").upsert(
     {
       booking_id: bookingId,
       walker_id: ok.user.id,
       occurs_on: day,
       skipped: false,
-      moved_to: zonedToUtc(d.date, Number(d.time.slice(0, 2)), Number(d.time.slice(3)), d.tz).toISOString(),
+      moved_to: movedTo.toISOString(),
       duration_min: d.duration_min,
     },
     { onConflict: "booking_id,occurs_on" },
   );
   if (error) return { error: error.message };
+  await followCovers(ok.supabase, ok.booking, day, { startsAt: movedTo, durationMin: d.duration_min }, d.tz, await myName(ok.supabase, ok.user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   redirect(`/schedule?week=${mondayOf(d.date)}`);
@@ -143,8 +190,18 @@ export async function moveOccurrence(bookingId: string, day: string, _: ActionSt
 
 /** Put one occurrence back the way the series has it. */
 export async function clearOccurrenceChange(bookingId: string, day: string) {
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   await supabase.from("booking_exceptions").delete().eq("booking_id", bookingId).eq("occurs_on", day);
+  // Covers go back to the series time for that day.
+  const tz = await getTimeZone();
+  const { data: b } = await supabase
+    .from("bookings")
+    .select("id, starts_at, duration_min, repeat_weekdays, repeat_until")
+    .eq("id", bookingId)
+    .eq("walker_id", user.id)
+    .maybeSingle();
+  const occ = b && isDateKey(day) ? occurrencesBetween([b], day, addDays(day, 1), tz)[0] : null;
+  if (b && occ) await followCovers(supabase, b, day, { startsAt: occ.at, durationMin: occ.durationMin }, tz, await myName(supabase, user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   revalidatePath(`/schedule/${bookingId}`);

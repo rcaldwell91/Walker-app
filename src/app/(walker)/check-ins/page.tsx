@@ -3,6 +3,7 @@ import { Card, Empty, PageTitle } from "@/components/ui";
 import { Stars } from "@/components/score-input";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
+import { notifyOpenedCheckIns } from "@/lib/notify";
 
 type Answers = {
   walker_satisfaction?: number;
@@ -19,7 +20,8 @@ export default async function CheckInsPage() {
   const tz = await getTimeZone();
 
   // Opens any check-ins that have come due on your cadence. No cron.
-  await supabase.rpc("open_due_check_ins", { p_tz: tz });
+  const { data: opened } = await supabase.rpc("open_due_check_ins", { p_tz: tz });
+  await notifyOpenedCheckIns(opened);
 
   const [{ data: checkIns }, { data: suggestions }, { data: ratings }] = await Promise.all([
     supabase

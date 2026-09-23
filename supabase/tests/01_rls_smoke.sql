@@ -9,8 +9,20 @@ begin;
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000000a', 'a@x.test', '{"role":"walker","full_name":"Walker A"}'),
   ('00000000-0000-0000-0000-00000000000b', 'b@x.test', '{"role":"walker","full_name":"Walker B"}'),
-  ('00000000-0000-0000-0000-00000000000c', 'c@x.test', '{"role":"client","full_name":"Client of A"}'),
-  ('00000000-0000-0000-0000-00000000000e', 'op@x.test', '{"role":"operator","full_name":"Robert"}');
+  ('00000000-0000-0000-0000-00000000000c', 'c@x.test', '{"role":"client","full_name":"Client of A"}');
+-- The operator is made with the service role (app_metadata). Signing up with
+-- role "operator" in user_metadata just makes a walker.
+insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data) values
+  ('00000000-0000-0000-0000-00000000000e', 'op@x.test', '{"full_name":"Robert"}', '{"role":"operator"}'),
+  ('00000000-0000-0000-0000-0000000000f1', 'sneaky@x.test', '{"role":"operator","full_name":"Sneaky"}', '{}');
+do $$ begin
+  if (select role from profiles where id = '00000000-0000-0000-0000-00000000000e') <> 'operator' then
+    raise exception 'Operator from app_metadata did not get the operator role';
+  end if;
+  if (select role from profiles where id = '00000000-0000-0000-0000-0000000000f1') <> 'walker' then
+    raise exception 'Signup picked the operator role through user_metadata';
+  end if;
+end $$;
 
 insert into walkers (id, handle) values
   ('00000000-0000-0000-0000-00000000000a', 'walker-a'),
@@ -342,6 +354,122 @@ select _as('00000000-0000-0000-0000-00000000000d');
 do $$ begin
   if _sees_client_c() <> '' then raise exception 'Non-squad walker sees client C during someone else''s cover'; end if;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Billing (0013), while B is covering client C right now
+-- ---------------------------------------------------------------------------
+-- A bills own client C: a draft and a sent invoice. A can't invoice B's client.
+select _as('00000000-0000-0000-0000-00000000000a');
+insert into invoices (id, walker_id, client_id, period_start, period_end) values
+  ('60000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', current_date - 7, current_date),
+  ('60000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', current_date - 7, current_date);
+insert into invoice_lines (walker_id, client_id, invoice_id, kind, description, occurred_on, unit_cents) values
+  ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000002', 'extra', 'Key pickup', current_date, 500);
+update invoices set status = 'sent' where id = '60000000-0000-0000-0000-000000000002';
+insert into payments (walker_id, client_id, invoice_id, amount_cents, method) values
+  ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000002', 200, 'venmo');
+do $$ begin
+  if (select number from invoices where id = '60000000-0000-0000-0000-000000000002') <> 2 then raise exception 'Invoice numbers should count up per walker'; end if;
+  if (select due_on from invoices where id = '60000000-0000-0000-0000-000000000002') <> current_date + 7 then raise exception 'Due date should be net 7'; end if;
+  begin
+    insert into invoices (walker_id, client_id, period_start, period_end)
+      values ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000002', current_date, current_date);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker invoiced another walker''s client'; end if;
+  end;
+  begin
+    update invoice_lines set unit_cents = 1 where invoice_id = '60000000-0000-0000-0000-000000000002';
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker edited a line on a sent invoice'; end if;
+  end;
+end $$;
+
+-- B (covering C right now, sees C's home notes) sees none of C's invoices, lines or payments.
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if _sees_client_c() = '' then raise exception 'Setup: B should be covering C right now'; end if;
+  if exists (select 1 from invoices) or exists (select 1 from invoice_lines) or exists (select 1 from payments) then
+    raise exception 'Covering walker can see the client''s billing';
+  end if;
+end $$;
+
+-- B walks Dexter on the cover: the walk bills through A, the regular walker.
+insert into walks (id, walker_id, service_type_id, status, started_at)
+  select '30000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-00000000000b', id, 'in_progress', now()
+  from service_types where key = 'group_walk';
+insert into walk_dogs (walk_id, dog_id) values ('30000000-0000-0000-0000-0000000000b1', '20000000-0000-0000-0000-000000000001');
+update walks set status = 'done', ended_at = now() where id = '30000000-0000-0000-0000-0000000000b1';
+do $$ begin
+  if exists (select 1 from invoice_lines) then raise exception 'Covering walker got a billing line for someone else''s client'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if (select walker_id from invoice_lines where walk_id = '30000000-0000-0000-0000-0000000000b1') <> '00000000-0000-0000-0000-00000000000a' then
+    raise exception 'Covered walk should bill through the regular walker';
+  end if;
+end $$;
+
+-- The client sees only their own sent invoice (not the draft), with its line and payment.
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select count(*) from invoices) <> 1 or (select status from invoices) <> 'sent' then raise exception 'Client should see exactly their sent invoice'; end if;
+  if (select count(*) from invoice_lines) <> 1 or (select count(*) from payments) <> 1 then raise exception 'Client should see that invoice''s line and payment'; end if;
+  begin
+    insert into payments (walker_id, client_id, invoice_id, amount_cents, method) values
+      ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000002', 9999, 'cash');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Client recorded a payment on their own invoice'; end if;
+  end;
+end $$;
+-- D (no relationship) sees no billing at all.
+select _as('00000000-0000-0000-0000-00000000000d');
+do $$ begin
+  if exists (select 1 from invoices) or exists (select 1 from invoice_lines) or exists (select 1 from payments) then
+    raise exception 'Unrelated walker sees billing';
+  end if;
+end $$;
+
+-- Push subscriptions and notifications are private.
+select _as('00000000-0000-0000-0000-00000000000a');
+insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-00000000000a', 'https://push.example/a', 'k', 'a');
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from push_subscriptions) then raise exception 'Walker B can see walker A''s push subscription'; end if;
+  begin
+    insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-00000000000a', 'https://push.example/b', 'k', 'a');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker B subscribed on A''s behalf'; end if;
+  end;
+end $$;
+
+-- Only the operator verifies background checks or suspends walkers.
+select _as('00000000-0000-0000-0000-00000000000a');
+update walkers set background_check_verified_at = now(), status = 'active' where id = '00000000-0000-0000-0000-00000000000a';
+update walkers set status = 'suspended' where id = '00000000-0000-0000-0000-00000000000b';
+do $$ begin
+  if (select background_check_verified_at from walkers where id = '00000000-0000-0000-0000-00000000000a') is not null then
+    raise exception 'Walker verified their own background check';
+  end if;
+end $$;
+reset role;
+do $$ begin
+  if (select status from walkers where id = '00000000-0000-0000-0000-00000000000b') <> 'active' then raise exception 'Walker A suspended walker B'; end if;
+end $$;
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000e');
+update walkers set background_check_verified_at = now() where id = '00000000-0000-0000-0000-00000000000a';
+update walkers set status = 'suspended' where id = '00000000-0000-0000-0000-00000000000b';
+reset role;
+do $$ begin
+  if (select background_check_verified_at from walkers where id = '00000000-0000-0000-0000-00000000000a') is null then raise exception 'Operator could not verify'; end if;
+  if (select status from walkers where id = '00000000-0000-0000-0000-00000000000b') <> 'suspended' then raise exception 'Operator could not suspend'; end if;
+end $$;
+update walkers set status = 'active' where id = '00000000-0000-0000-0000-00000000000b';
+set local role authenticated;
 
 -- The client got an in-app notice for each acceptance.
 reset role;
