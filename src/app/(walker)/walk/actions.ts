@@ -18,7 +18,7 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
 
   const { supabase, user } = await requireRole("walker", "operator");
 
-  const { data: existing } = await supabase.from("walks").select("id").eq("status", "in_progress").maybeSingle();
+  const { data: existing } = await supabase.from("walks").select("id").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle();
   if (existing) redirect(`/walk/${existing.id}`);
 
   // Pickup order comes from the form (suggested, maybe reordered by the walker). It has to

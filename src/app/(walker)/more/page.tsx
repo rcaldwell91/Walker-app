@@ -19,7 +19,7 @@ const items = [
 ];
 
 export default async function MorePage() {
-  const { supabase, profile } = await requireRole("walker", "operator");
+  const { supabase, user, profile } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const today = dateKey(new Date(), tz);
   const weekStart = zonedToUtc(mondayOf(today), 0, 0, tz);
@@ -27,7 +27,7 @@ export default async function MorePage() {
   const since = new Date(Math.min(weekStart.getTime(), monthStart.getTime())).toISOString();
 
   const [{ data: walks }, { data: tips }, { count: newSuggestions }] = await Promise.all([
-    supabase.from("walks").select("started_at, walk_minutes, drive_minutes").eq("status", "done").gte("started_at", since),
+    supabase.from("walks").select("started_at, walk_minutes, drive_minutes").eq("walker_id", user.id).eq("status", "done").gte("started_at", since),
     supabase.from("tips").select("amount_cents, created_at").neq("status", "cancelled"),
     supabase.from("suggestions").select("id", { count: "exact", head: true }).is("read_at", null),
   ]);

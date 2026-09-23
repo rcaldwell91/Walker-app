@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
-import { Card, ErrorText, LinkButton, PageTitle } from "@/components/ui";
+import { Button, Card, ErrorText, LinkButton, PageTitle } from "@/components/ui";
 import { InviteLink } from "@/components/invite-link";
 import { AddDogForm } from "@/components/add-dog-form";
 import { regenerateInvite } from "../actions";
 import { RateClientForm } from "./rate-client-form";
+import { askClientApproval } from "../../coverage-actions";
 import { Stars } from "@/components/score-input";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
@@ -19,14 +20,25 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const { data: client } = await supabase
     .from("clients")
     .select("*, dogs(id, name, working_on, active), client_invites(token, expires_at, redeemed_at)")
     .eq("id", id)
+    .eq("walker_id", user.id)
     .maybeSingle();
   if (!client) notFound();
   const tz = await getTimeZone();
+  const [{ data: squadRows }, { data: approvals }, { data: asks }] = await Promise.all([
+    supabase.rpc("squad_overview"),
+    supabase.from("coverage_approvals").select("coverage_walker_id").eq("client_id", client.id).is("revoked_at", null),
+    supabase.from("coverage_approval_asks").select("coverage_walker_id").eq("client_id", client.id).is("answered_at", null),
+  ]);
+  const squad = ((squadRows ?? []) as { status: string; walker_id: string; full_name: string; handle: string }[]).filter(
+    (m) => m.status === "accepted",
+  );
+  const approvedIds = new Set((approvals ?? []).map((a) => a.coverage_walker_id));
+  const askedIds = new Set((asks ?? []).map((a) => a.coverage_walker_id));
   const { data: myRatings } = await supabase
     .from("ratings")
     .select("id, score, comment, created_at")
@@ -92,6 +104,41 @@ export default async function ClientDetailPage({
         {!client.phone && !client.email && !client.home_access_notes ? (
           <p className="text-muted">Nothing here yet.</p>
         ) : null}
+      </Card>
+
+      <h2 id="backup-walkers" className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Backup walkers</h2>
+      <Card className="flex flex-col gap-2">
+        <p className="text-xs text-muted">
+          Squad members {client.name.split(" ")[0]} approves can cover walks and get home access on those days.
+        </p>
+        {!squad.length ? (
+          <p className="text-sm text-muted">
+            Your <Link href="/squad" className="text-accent underline">squad</Link> is empty.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2 text-sm">
+            {squad.map((m) => (
+              <li key={m.walker_id} className="flex items-center justify-between gap-2" data-backup={m.handle}>
+                <span>
+                  <span className="font-medium">{m.full_name}</span> <span className="text-muted">@{m.handle}</span>
+                </span>
+                {approvedIds.has(m.walker_id) ? (
+                  <span className="text-accent">✓ Approved</span>
+                ) : askedIds.has(m.walker_id) ? (
+                  <span className="text-muted">Asked</span>
+                ) : client.status !== "active" ? (
+                  <span className="text-xs text-muted">Once they join</span>
+                ) : (
+                  <form action={askClientApproval.bind(null, client.id, m.walker_id)}>
+                    <Button type="submit" variant="secondary" className="px-3 text-sm">
+                      Ask for approval
+                    </Button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Your private rating</h2>

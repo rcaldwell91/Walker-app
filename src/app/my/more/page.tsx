@@ -5,11 +5,12 @@ import { Stars } from "@/components/score-input";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { SuggestionForm } from "../relationship-forms";
+import { BackupWalkerList, type SquadChoice } from "../backup-walkers";
 
 export default async function MyMorePage() {
   const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
-  const [{ data: rows }, { data: checkIns }] = await Promise.all([
+  const [{ data: rows }, { data: checkIns }, { data: choices }] = await Promise.all([
     supabase
       .from("clients")
       .select("id, status, walker:walkers!clients_walker_id_fkey(id, business_name, suggestion_box_enabled, profile:profiles(full_name))"),
@@ -19,6 +20,7 @@ export default async function MyMorePage() {
       .not("responded_at", "is", null)
       .order("responded_at", { ascending: false })
       .limit(20),
+    supabase.rpc("client_squad_choices"),
   ]);
 
   const walkers = (rows ?? []).map((r) => {
@@ -80,11 +82,15 @@ export default async function MyMorePage() {
         <p className="mb-6 text-sm text-muted">When your walker checks in, your answers are kept here.</p>
       )}
 
-      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Coverage walkers</h2>
-      <Empty>
-        Soon you&apos;ll be able to approve backup walkers who can take a walk when yours is away.{" "}
-        <span className="text-xs">(Stage 6)</span>
-      </Empty>
+      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Backup walkers</h2>
+      <p className="mb-2 text-sm text-muted">
+        Walkers your walker trusts. Approve the ones who may cover a walk and come into your home when your walker can&apos;t.
+      </p>
+      {(choices ?? []).length ? (
+        <BackupWalkerList choices={(choices ?? []) as SquadChoice[]} />
+      ) : (
+        <Empty>Your walker hasn&apos;t added anyone to their squad yet.</Empty>
+      )}
 
       <form action={logout} className="mt-8">
         <button className="text-sm text-muted underline">Log out</button>

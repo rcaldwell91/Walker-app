@@ -5,6 +5,7 @@ import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { fmtDate, fmtTime, firstName } from "@/lib/format";
 import { HomeworkCard } from "@/components/homework-card";
 import { CheckInForm } from "./relationship-forms";
+import { ApprovalPrompt, type SquadChoice } from "./backup-walkers";
 
 export default async function ClientHome() {
   const { supabase, profile } = await requireRole("client");
@@ -23,7 +24,11 @@ export default async function ClientHome() {
   ]);
 
   // Works out whether a check-in is due (walker's cadence) and opens it. No cron.
-  const { data: openCheckIns } = await supabase.rpc("open_due_check_ins", { p_tz: tz });
+  const [{ data: openCheckIns }, { data: choices }] = await Promise.all([
+    supabase.rpc("open_due_check_ins", { p_tz: tz }),
+    supabase.rpc("client_squad_choices"),
+  ]);
+  const asks = ((choices ?? []) as SquadChoice[]).filter((c) => c.asked && !c.approved);
   const walkerNameFor = (clientId: string) => {
     const c = (clients ?? []).find((x) => x.id === clientId);
     const w = c && (Array.isArray(c.walker) ? c.walker[0] : c.walker);
@@ -46,6 +51,10 @@ export default async function ClientHome() {
           </LinkButton>
         </Card>
       ) : null}
+
+      {asks.map((c) => (
+        <ApprovalPrompt key={`${c.client_id}-${c.coverage_walker_id}`} c={c} walkerName={walkerNameFor(c.client_id)} />
+      ))}
 
       {((openCheckIns ?? []) as { id: string; client_id: string }[]).map((ci) => (
         <CheckInForm key={ci.id} checkInId={ci.id} walkerName={walkerNameFor(ci.client_id)} />

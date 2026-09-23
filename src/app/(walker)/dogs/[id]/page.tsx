@@ -9,12 +9,13 @@ import { HomeworkForm } from "./homework-form";
 
 export default async function DogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const { data: dog } = await supabase
     .from("dogs")
     .select("*, client:clients(id, name), dog_notes(id, body, created_at, source), homework(id, title, status, due_at, client_response), incidents(id, severity, what_happened, occurred_at)")
     .eq("id", id)
+    .eq("walker_id", user.id) // covering walkers see dogs on the cover page instead
     .maybeSingle();
   if (!dog) notFound();
   const client = Array.isArray(dog.client) ? dog.client[0] : dog.client;

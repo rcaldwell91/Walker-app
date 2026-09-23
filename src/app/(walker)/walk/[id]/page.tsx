@@ -5,11 +5,12 @@ import { LiveWalk } from "./live-walk";
 
 export default async function WalkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const { data: walk } = await supabase
     .from("walks")
-    .select("id, status, started_at, pickup_order, trail:trails(name), service:service_types(name, log_buttons), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name, working_on, progress_summary, quirks, client_id, client:clients(id, name, color, lat, lng))), walk_events(id, kind, note, at, dog_id), dog_notes(id, body, dog_id, created_at), messages(id, kind, client_id, sent_at)")
+    .select("id, status, started_at, pickup_order, trail:trails(name), service:service_types(name, log_buttons), walk_dogs(picked_up_at, dropped_off_at, dog:dogs(id, name, working_on, progress_summary, quirks, client_id, client:clients(id, name, color, lat, lng, home_access_notes))), walk_events(id, kind, note, at, dog_id), dog_notes(id, body, dog_id, created_at), messages(id, kind, client_id, sent_at)")
     .eq("id", id)
+    .eq("walker_id", user.id) // someone else's walk with your dogs: see /report/[id]
     .maybeSingle();
   if (!walk) notFound();
   if (walk.status === "done") redirect(`/walk/${id}/done`);
@@ -29,6 +30,7 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
       clientId: client?.id ?? dog!.client_id,
       clientName: client?.name ?? "",
       clientColor: client?.color ?? null,
+      homeNotes: client?.home_access_notes ?? null,
       clientLat: client?.lat ?? null,
       clientLng: client?.lng ?? null,
       picked_up_at: wd.picked_up_at,

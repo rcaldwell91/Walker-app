@@ -6,8 +6,8 @@ import { updateClientAction } from "../../actions";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireRole("walker", "operator");
-  const { data: client } = await supabase.from("clients").select("*").eq("id", id).maybeSingle();
+  const { supabase, user } = await requireRole("walker", "operator");
+  const { data: client } = await supabase.from("clients").select("*").eq("id", id).eq("walker_id", user.id).maybeSingle();
   if (!client) notFound();
   return (
     <>

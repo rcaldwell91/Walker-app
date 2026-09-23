@@ -8,12 +8,13 @@ import { fmtHours } from "@/lib/hours";
 
 export default async function WalkDonePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const { data: walk } = await supabase
     .from("walks")
     .select("id, started_at, ended_at, distance_m, summary, drive_minutes, walk_minutes, walk_dogs(dog:dogs(name)), walk_events(kind, dog_id), tips(amount_cents, status, client:clients(name))")
     .eq("id", id)
+    .eq("walker_id", user.id) // someone else's walk with your dogs: see /report/[id]
     .maybeSingle();
   if (!walk) notFound();
 

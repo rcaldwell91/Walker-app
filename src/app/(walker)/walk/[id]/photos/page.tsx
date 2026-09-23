@@ -10,6 +10,7 @@ export default async function WalkPhotosPage({ params }: { params: Promise<{ id:
     .from("walks")
     .select("id, walk_dogs(dog:dogs(id, name)), photos(id, storage_path, caption, dog_id)")
     .eq("id", id)
+    .eq("walker_id", user.id) // someone else's walk with your dogs: see /report/[id]
     .maybeSingle();
   if (!walk) notFound();
   const dogs = (walk.walk_dogs ?? []).map((wd) => (Array.isArray(wd.dog) ? wd.dog[0] : wd.dog)!).filter(Boolean);

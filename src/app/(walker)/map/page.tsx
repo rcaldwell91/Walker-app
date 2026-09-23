@@ -3,11 +3,12 @@ import { PageTitle } from "@/components/ui";
 import { MapScreen } from "./map-screen";
 
 export default async function MapPage() {
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const [{ data: clients }, { data: trails }] = await Promise.all([
     supabase
       .from("clients")
       .select("id, name, color, group_label, lat, lng, address_line, city, dogs(name, active)")
+      .eq("walker_id", user.id) // not clients you're covering for someone else
       .neq("status", "archived")
       .order("name"),
     supabase.from("trails").select("id, name, lat, lng, notes, color, good_for_rain").order("name"),

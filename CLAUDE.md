@@ -40,6 +40,14 @@ Free and keyless for now. Each piece sits behind one file so Mapbox or Google ca
 - **Embedding walkers from clients** must name the relationship: `walker:walkers!clients_walker_id_fkey(...)`. `coverage_approvals` makes a second path, and the unqualified embed errors out.
 - **In storage policies, qualify `storage.objects.name`** inside subqueries; other tables (e.g. `dogs`) have a `name` column too (see 0011).
 
+## Coverage squad (Stage 6)
+
+- **Coverage is per occurrence**, never per series: a `coverage_requests` row has the occurrence's `occurs_on` (its series day) and actual `starts_at`. The database computes the access window (midnight the day before → midnight after, in the requester's zone).
+- **The covering walker's access** to the client row and the booking's dogs comes only from `covering_client_ids()` / `covering_dog_ids()`: accepted request + client approval not revoked + now inside the window. Revoking an approval or leaving the squad cancels upcoming covers.
+- **RLS now returns some rows that aren't "yours"**: covered clients/dogs (covering walker, in the window) and other walkers' walks that had your dogs (regular walker, for reports). Any query meaning "my clients / my dogs / my walks" must add `.eq("walker_id", user.id)`.
+- **Squad members see each other only through `squad_overview()`** (name, handle, photo, business name, service area, phone). Walker lookup is exact-handle only (`find_walker_by_handle`). Clients see their walker's squad through `client_squad_choices()`.
+- Covered walk reports: `/report/[id]` (regular walker) and `/my/walks/[id]` (client) both render `WalkReportView`.
+
 ## RLS smoke test
 
 On a scratch Postgres (not the real project):

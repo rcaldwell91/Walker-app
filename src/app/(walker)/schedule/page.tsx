@@ -5,6 +5,8 @@ import { fmtTime } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { addDays, dateKey, fmtDateKey, isDateKey, mondayOf } from "@/lib/time";
 import { fetchBookingsForRange, occurrencesBetween } from "@/lib/schedule";
+import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
+import { CoverBadge, CoveringCard } from "../cover-cards";
 
 export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const { supabase } = await requireRole("walker", "operator");
@@ -14,7 +16,12 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const monday = mondayOf(isDateKey(week) ? week : today);
   const nextMonday = addDays(monday, 7);
 
-  const { bookings, exceptions } = await fetchBookingsForRange(supabase, monday, nextMonday, tz);
+  const [{ bookings, exceptions }, coverage] = await Promise.all([
+    fetchBookingsForRange(supabase, monday, nextMonday, tz),
+    fetchMyCoverage(supabase),
+  ]);
+  const coveringOn = (day: string) =>
+    coverage.filter((r) => r.incoming && r.status === "accepted" && dateKey(new Date(r.starts_at), tz) === day);
   const occurrences = occurrencesBetween(bookings, monday, nextMonday, tz, exceptions);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
@@ -44,6 +51,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       <ol className="flex flex-col gap-4">
         {days.map((day) => {
           const items = occurrences.filter((o) => o.day === day);
+          const covering = coveringOn(day);
           return (
             <li key={day} data-day={day}>
               <div className="mb-1 flex items-center justify-between">
@@ -55,8 +63,13 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                   + Add
                 </Link>
               </div>
-              {items.length ? (
+              {items.length || covering.length ? (
                 <ul className="flex flex-col gap-2">
+                  {covering.map((r) => (
+                    <li key={r.id} data-occurrence="covering">
+                      <CoveringCard r={r} tz={tz} />
+                    </li>
+                  ))}
                   {items.map(({ booking: b, at, originalDay, durationMin, skipped, moved }) => {
                     const client = Array.isArray(b.client) ? b.client[0] : b.client;
                     const service = Array.isArray(b.service) ? b.service[0] : b.service;
@@ -74,8 +87,8 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                                 {skipped ? "Skipped this day · " : moved ? "Moved · " : ""}
                                 {client?.name} · {service?.name} · {durationMin} min
                                 {b.repeat_weekdays?.length && !skipped && !moved ? " · ↻" : ""}
-                                {b.status === "needs_coverage" ? " · needs coverage" : ""}
                               </p>
+                              {!skipped ? <CoverBadge c={dayCoverage(coverage, b.id, originalDay)} /> : null}
                             </div>
                             <p className="shrink-0 text-sm font-medium">{fmtTime(at, tz)}</p>
                           </Card>

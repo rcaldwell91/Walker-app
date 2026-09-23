@@ -3,17 +3,19 @@ import { requireRole } from "@/lib/session";
 import { Empty, PageTitle } from "@/components/ui";
 import { StartWalkForm } from "./start-walk-form";
 
-export default async function NewWalkPage() {
+export default async function NewWalkPage({ searchParams }: { searchParams: Promise<{ dogs?: string }> }) {
+  const { dogs: preselect } = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
 
-  const { data: active } = await supabase.from("walks").select("id").eq("status", "in_progress").maybeSingle();
+  const { data: active } = await supabase.from("walks").select("id").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle();
   if (active) redirect(`/walk/${active.id}`);
 
   const [{ data: clients }, { data: services }, { data: trails }] = await Promise.all([
     supabase
       .from("clients")
-      .select("id, name, color, group_label, lat, lng, dogs(id, name, working_on, active)")
+      .select("id, name, color, group_label, lat, lng, walker_id, dogs(id, name, working_on, active)")
       // Invited clients count too: a walker can walk a dog before the owner makes a login.
+      // Clients you're covering today show up here too (RLS, only inside the cover window).
       .in("status", ["active", "invited"])
       .order("name"),
     supabase.from("service_types").select("id, name, category, walker_id").order("sort_order"),
@@ -23,7 +25,7 @@ export default async function NewWalkPage() {
   const dogs = (clients ?? []).flatMap((c) =>
     (c.dogs ?? [])
       .filter((d) => d.active)
-      .map((d) => ({ ...d, clientId: c.id, clientName: c.name, color: c.color, group: c.group_label })),
+      .map((d) => ({ ...d, clientId: c.id, clientName: c.name, color: c.color, group: c.group_label, covering: c.walker_id !== user.id })),
   );
   const stops = (clients ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, lat: c.lat, lng: c.lng }));
 
@@ -43,6 +45,7 @@ export default async function NewWalkPage() {
     <>
       <PageTitle sub="Tap the dogs you're picking up.">Start a walk</PageTitle>
       <StartWalkForm
+        initialSelected={(preselect ?? "").split(",").filter((id) => dogs.some((d) => d.id === id))}
         dogs={dogs}
         stops={stops}
         services={svc}

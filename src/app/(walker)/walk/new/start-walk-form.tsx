@@ -6,17 +6,19 @@ import { Button, Card, ErrorText, Field, Select } from "@/components/ui";
 import { closest, distanceM, etaMinutes, hasCoords, miles, nearestNeighborOrder, type LatLng } from "@/lib/geo/distance";
 import { PickupOrder, type PickupRow } from "./pickup-order";
 
-type Dog = { id: string; name: string; working_on: string; clientId: string; clientName: string; color: string | null; group: string | null };
+type Dog = { id: string; name: string; working_on: string; clientId: string; clientName: string; color: string | null; group: string | null; covering?: boolean };
 type Stop = { id: string; name: string; color: string | null; lat: number | null; lng: number | null };
 type Trail = { id: string; name: string; lat: number; lng: number };
 
 export function StartWalkForm({
+  initialSelected = [],
   dogs,
   stops,
   services,
   trails,
   ownTrailIds,
 }: {
+  initialSelected?: string[];
   dogs: Dog[];
   stops: Stop[];
   services: { id: string; name: string; category: string }[];
@@ -24,7 +26,7 @@ export function StartWalkForm({
   ownTrailIds: string[];
 }) {
   const [state, action, pending] = useActionState(startWalk, undefined);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [here, setHere] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(true);
   const [manual, setManual] = useState<{ key: string; order: string[] } | null>(null);
@@ -132,7 +134,10 @@ export function StartWalkForm({
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color ?? "var(--border)" }} />
                   {d.name}
                 </span>
-                <span className="text-xs text-muted">{d.clientName}</span>
+                <span className="text-xs text-muted">
+                  {d.covering ? "Covering · " : ""}
+                  {d.clientName}
+                </span>
               </button>
               {on ? <input type="hidden" name="dog_id" value={d.id} /> : null}
             </li>

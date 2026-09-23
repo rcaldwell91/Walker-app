@@ -20,6 +20,7 @@ type Dog = {
   clientId: string;
   clientName: string;
   clientColor: string | null;
+  homeNotes: string | null;
   clientLat: number | null;
   clientLng: number | null;
   picked_up_at: string | null;
@@ -153,6 +154,11 @@ export function LiveWalk({
           ) : null}
           {focus.progress_summary ? <p className="mt-1 text-sm text-muted">{focus.progress_summary}</p> : null}
           {focus.quirks ? <p className="mt-1 text-sm text-warn">{focus.quirks}</p> : null}
+          {focus.homeNotes ? (
+            <p className="mt-1 text-sm" data-home-notes>
+              <span className="font-medium">Home access:</span> {focus.homeNotes}
+            </p>
+          ) : null}
         </Card>
       ) : null}
 

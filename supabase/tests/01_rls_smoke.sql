@@ -224,6 +224,154 @@ do $$ begin
   if (select count(*) from suggestions) <> 1 then raise exception 'Operator should see suggestions'; end if;
 end $$;
 
+-- ===========================================================================
+-- Stage 6: coverage squad. A and B are squad; D is not. Client C (of A) has
+-- Dexter (on the booking) and Pip (not on it), and home access notes.
+-- ===========================================================================
+reset role;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-00000000000d', 'd@x.test', '{"role":"walker","full_name":"Walker D"}');
+insert into walkers (id, handle) values ('00000000-0000-0000-0000-00000000000d', 'walker-d');
+insert into squad_links (requester_id, recipient_id, status) values
+  ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', 'accepted');
+insert into dogs (id, client_id, walker_id, name) values
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', 'Pip');
+insert into bookings (id, walker_id, client_id, service_type_id, starts_at)
+  select '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', id, now()
+  from service_types where key = 'group_walk';
+insert into booking_dogs (booking_id, dog_id) values ('40000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001');
+-- Helper: what can the current walker see of client C?
+create or replace function _sees_client_c() returns text language sql as $$
+  select concat_ws(',',
+    (select 'client' from clients where id = '10000000-0000-0000-0000-000000000001'),
+    (select 'notes:' || home_access_notes from clients where id = '10000000-0000-0000-0000-000000000001'),
+    (select string_agg(name, '+' order by name) from dogs where client_id = '10000000-0000-0000-0000-000000000001'));
+$$;
+set local role authenticated;
+
+
+-- B is squad but not approved: nothing. D is not squad: nothing. A can't ask B yet.
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if _sees_client_c() <> '' then raise exception 'Unapproved squad member sees client C: %', _sees_client_c(); end if;
+  if (select count(*) from squad_overview() where status = 'accepted') <> 1 then raise exception 'B should see A in their squad'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000d');
+do $$ begin
+  if _sees_client_c() <> '' then raise exception 'Non-squad walker sees client C'; end if;
+  if (select count(*) from squad_overview()) <> 0 then raise exception 'Non-squad walker sees a squad'; end if;
+  if (select count(*) from find_walker_by_handle('walker-a')) <> 1 then raise exception 'Exact handle lookup failed'; end if;
+  if (select count(*) from find_walker_by_handle('walker')) <> 0 then raise exception 'Handle lookup matched a partial handle'; end if;
+  -- D can't slip Dexter onto their own walk.
+  insert into walks (id, walker_id, service_type_id, status)
+    select '30000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', id, 'in_progress' from service_types where key = 'group_walk';
+  begin
+    insert into walk_dogs (walk_id, dog_id) values ('30000000-0000-0000-0000-00000000000d', '20000000-0000-0000-0000-000000000001');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Non-squad walker put another walker''s dog on their walk'; end if;
+  end;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  begin
+    insert into coverage_requests (booking_id, from_walker_id, to_walker_id, occurs_on, starts_at)
+      values ('40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', current_date, now());
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Coverage requested from a walker the client never approved'; end if;
+  end;
+end $$;
+
+-- Client approves B (and can't approve D, who isn't in A's squad). A's client list is private to D.
+select _as('00000000-0000-0000-0000-00000000000c');
+insert into coverage_approvals (client_id, coverage_walker_id) values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  begin
+    insert into coverage_approvals (client_id, coverage_walker_id) values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000d');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Client approved a walker outside their walker''s squad'; end if;
+  end;
+  if (select count(*) from client_squad_choices() where approved) <> 1 then raise exception 'Client should see B as approved'; end if;
+end $$;
+
+-- Approved but no accepted cover yet: still nothing.
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if _sees_client_c() <> '' then raise exception 'Approved squad member sees client C with no cover'; end if;
+end $$;
+
+-- A asks B for a day 10 days out and for today.
+select _as('00000000-0000-0000-0000-00000000000a');
+insert into coverage_requests (id, booking_id, from_walker_id, to_walker_id, occurs_on, starts_at, tz) values
+  ('50000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
+   '00000000-0000-0000-0000-00000000000b', current_date + 10, now() + interval '10 days', 'America/Los_Angeles'),
+  ('50000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
+   '00000000-0000-0000-0000-00000000000b', current_date, now(), 'America/Los_Angeles');
+do $$ begin
+  -- A can't accept their own request.
+  begin
+    update coverage_requests set status = 'accepted' where id = '50000000-0000-0000-0000-000000000002';
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Requester accepted their own coverage request'; end if;
+  end;
+  -- The window is computed by the database: midnight the day before → midnight after (LA).
+  if (select access_until - access_from from coverage_requests where id = '50000000-0000-0000-0000-000000000002') not in (interval '48 hours', interval '47 hours', interval '49 hours')
+    then raise exception 'Coverage window isn''t two days'; end if;
+end $$;
+
+-- B accepts the far-off day: still nothing (outside the window).
+select _as('00000000-0000-0000-0000-00000000000b');
+update coverage_requests set status = 'accepted' where id = '50000000-0000-0000-0000-000000000001';
+do $$ begin
+  if (select status from coverage_requests where id = '50000000-0000-0000-0000-000000000001') <> 'accepted' then raise exception 'B could not accept'; end if;
+  if _sees_client_c() <> '' then raise exception 'Covering walker sees client C outside the window: %', _sees_client_c(); end if;
+end $$;
+
+-- B accepts today: sees client C's home notes and Dexter only (not Pip, who isn't on the booking).
+update coverage_requests set status = 'accepted' where id = '50000000-0000-0000-0000-000000000002';
+do $$ begin
+  if _sees_client_c() <> 'client,notes:Key under the mat,Dexter' then
+    raise exception 'Covering walker in window should see client, notes and Dexter only, saw: %', _sees_client_c();
+  end if;
+  -- D still sees nothing.
+end $$;
+select _as('00000000-0000-0000-0000-00000000000d');
+do $$ begin
+  if _sees_client_c() <> '' then raise exception 'Non-squad walker sees client C during someone else''s cover'; end if;
+end $$;
+
+-- The client got an in-app notice for each acceptance.
+reset role;
+do $$ begin
+  if (select count(*) from messages where body like 'Walker B is covering Dexter''s walk on %') <> 2 then
+    raise exception 'Client notice missing: %', (select string_agg(body, ' | ') from messages);
+  end if;
+end $$;
+
+-- After the window closes, access is gone. (Admin step: no user identity.)
+select set_config('request.jwt.claim.sub', '', true);
+update coverage_requests set access_from = now() - interval '3 days', access_until = now() - interval '1 minute'
+  where id = '50000000-0000-0000-0000-000000000002';
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if _sees_client_c() <> '' then raise exception 'Covering walker still sees client C after the window: %', _sees_client_c(); end if;
+end $$;
+
+-- Revoking the approval cancels B's upcoming accepted cover.
+select _as('00000000-0000-0000-0000-00000000000c');
+update coverage_approvals set revoked_at = now() where coverage_walker_id = '00000000-0000-0000-0000-00000000000b';
+reset role;
+do $$ begin
+  if (select status from coverage_requests where id = '50000000-0000-0000-0000-000000000001') <> 'cancelled' then
+    raise exception 'Revoking approval left an upcoming cover in place';
+  end if;
+end $$;
+set local role authenticated;
+
 reset role;
 select 'RLS smoke test passed' as result;
 rollback;

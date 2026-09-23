@@ -123,3 +123,24 @@ async function myClientForWalk(walkId: string): Promise<{ walkerId: string; clie
   if (!me) return { error: "Walk not found" };
   return { walkerId: walk.walker_id, clientId: me.id };
 }
+
+/** Client reply. Always goes to the client's own walker. */
+export async function sendClientMessage(walkerId: string, _: FormState, form: FormData): Promise<FormState> {
+  const body = String(form.get("body") ?? "").trim();
+  if (!body) return { error: "Write something first" };
+  if (body.length > 2000) return { error: "Keep it under 2,000 characters" };
+  const { supabase, user } = await requireRole("client");
+  const { data: me } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("walker_id", walkerId)
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  if (!me) return { error: "You can only message your own walker" };
+  const { error } = await supabase
+    .from("messages")
+    .insert({ walker_id: walkerId, client_id: me.id, sender_id: user.id, kind: "custom", body });
+  if (error) return { error: error.message };
+  revalidatePath("/my/messages");
+  return { done: Date.now() };
+}

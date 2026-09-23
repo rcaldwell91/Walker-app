@@ -10,12 +10,18 @@ export function EndWalkForm({
   dogs,
 }: {
   walkId: string;
-  dogs: { id: string; name: string; working_on: string; progress_summary: string }[];
+  dogs: { id: string; name: string; working_on: string; progress_summary: string; own: boolean }[];
 }) {
   const [state, action, pending] = useActionState(endWalk.bind(null, walkId), undefined);
   return (
     <form action={action} className="flex flex-col gap-4">
-      {dogs.map((d) => (
+      {dogs.map((d) =>
+        !d.own ? (
+          <Card key={d.id} className="text-sm" data-covered-dog={d.name}>
+            <p className="font-medium">{d.name}</p>
+            <p className="text-muted">You&apos;re covering. Their walker keeps what {d.name} is working on; put anything they should know in the summary.</p>
+          </Card>
+        ) : (
         <Card key={d.id} className="flex flex-col gap-3">
           <p className="font-medium">{d.name}</p>
           <Field label="Working on">
@@ -25,7 +31,8 @@ export function EndWalkForm({
             <VoiceInput name={`progress[${d.id}]`} defaultValue={d.progress_summary} rows={2} placeholder="Short. This is what you'll see at next pickup." />
           </Field>
         </Card>
-      ))}
+        ),
+      )}
       <Field label="Walk summary for the owners" hint="Optional. Goes on the walk report.">
         <VoiceInput name="summary" rows={3} />
       </Field>
