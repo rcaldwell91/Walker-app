@@ -9,6 +9,7 @@ import { fetchGpsLine } from "@/lib/gps";
 import { pathDistanceM } from "@/lib/geo/distance";
 import { splitMinutes } from "@/lib/hours";
 import { clientProfileId, notify, walkAudience } from "@/lib/notify";
+import { friendly } from "@/lib/errors";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -49,23 +50,30 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
   const { error: dErr } = await supabase.from("walk_dogs").insert(dogIds.map((dog_id) => ({ walk_id: walk.id, dog_id })));
   if (dErr) {
     await supabase.from("walks").delete().eq("id", walk.id);
-    return { error: `Couldn't add the pets to the walk: ${dErr.message}` };
+    return { error: "Couldn't add the pets to the walk. Try again." };
   }
   redirect(`/walk/${walk.id}`);
 }
 
-export async function markPickup(walkId: string, dogId: string, which: "picked_up_at" | "dropped_off_at") {
+export async function markPickup(walkId: string, dogId: string, which: "picked_up_at" | "dropped_off_at"): Promise<{ error?: string }> {
   const { supabase } = await requireRole("walker", "operator");
-  await supabase.from("walk_dogs").update({ [which]: new Date().toISOString() }).eq("walk_id", walkId).eq("dog_id", dogId);
+  const { error } = await supabase.from("walk_dogs").update({ [which]: new Date().toISOString() }).eq("walk_id", walkId).eq("dog_id", dogId);
+  if (error) return { error: friendly(error) };
   await supabase.from("walk_events").insert({
     walk_id: walkId,
     dog_id: dogId,
     kind: which === "picked_up_at" ? "pickup" : "dropoff",
   });
   revalidatePath(`/walk/${walkId}`);
+  return {};
 }
 
-export async function sendStatus(walkId: string, kind: "on_my_way" | "here" | "picked_up" | "dropped_off", clientId: string, etaMinutes?: number) {
+export async function sendStatus(
+  walkId: string,
+  kind: "on_my_way" | "here" | "picked_up" | "dropped_off",
+  clientId: string,
+  etaMinutes?: number,
+): Promise<{ error?: string }> {
   const { supabase, user } = await requireRole("walker", "operator");
   const bodies = {
     on_my_way: etaMinutes ? `On my way — about ${etaMinutes} min.` : "On my way!",
@@ -73,7 +81,7 @@ export async function sendStatus(walkId: string, kind: "on_my_way" | "here" | "p
     picked_up: "Got them! Heading out.",
     dropped_off: "Dropped off safe and sound.",
   };
-  await supabase.from("messages").insert({
+  const { error } = await supabase.from("messages").insert({
     walker_id: user.id,
     client_id: clientId,
     walk_id: walkId,
@@ -82,6 +90,7 @@ export async function sendStatus(walkId: string, kind: "on_my_way" | "here" | "p
     body: bodies[kind],
     eta_minutes: etaMinutes ?? null,
   });
+  if (error) return { error: friendly(error, "Didn't send. Tap again.") };
   if (kind !== "picked_up") {
     const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
     await notify([await clientProfileId(clientId)], {
@@ -92,21 +101,26 @@ export async function sendStatus(walkId: string, kind: "on_my_way" | "here" | "p
     });
   }
   revalidatePath(`/walk/${walkId}`);
+  return {};
 }
 
+/** Throws when the points didn't save, so the phone keeps them and tries again. */
 export async function saveGpsPoints(walkId: string, points: { at: string; lat: number; lng: number; accuracy_m?: number }[]) {
   if (!points.length) return;
   const { supabase } = await requireRole("walker", "operator");
-  await supabase.from("gps_points").upsert(points.map((p) => ({ walk_id: walkId, ...p })), { onConflict: "walk_id,at" });
+  const { error } = await supabase.from("gps_points").upsert(points.map((p) => ({ walk_id: walkId, ...p })), { onConflict: "walk_id,at" });
+  if (error) throw new Error("GPS points not saved");
 }
 
 /** Stage 1 → 2: everyone's picked up, the walk itself starts. Anyone not tapped counts as picked up now. */
-export async function startWalking(walkId: string) {
+export async function startWalking(walkId: string): Promise<{ error?: string }> {
   const { supabase, user } = await requireRole("walker", "operator");
   const now = new Date().toISOString();
-  const { data } = await supabase.from("walks").update({ walking_at: now }).eq("id", walkId).eq("walker_id", user.id).is("walking_at", null).select("id");
+  const { data, error } = await supabase.from("walks").update({ walking_at: now }).eq("id", walkId).eq("walker_id", user.id).is("walking_at", null).select("id");
+  if (error) return { error: friendly(error, "Didn't go through. Tap again.") };
   if (data?.length) await supabase.from("walk_dogs").update({ picked_up_at: now }).eq("walk_id", walkId).is("picked_up_at", null);
   revalidatePath(`/walk/${walkId}`);
+  return {};
 }
 
 /** Stage 2 → 3: "End walk". The walk's end time is now, not when the wrap-up is finished. */
@@ -116,14 +130,21 @@ export async function endWalking(walkId: string) {
   redirect(`/walk/${walkId}/end`);
 }
 
-/** A quick note during the walk. It's on the report, and shows in the wrap-up to fold into the summary. */
-export async function addQuickNote(walkId: string, text: string) {
+/**
+ * A quick note during the walk. It's on the report, and shows in the wrap-up to
+ * fold into the summary. The phone picks the id, so a note re-sent after a dead
+ * zone is saved once.
+ */
+export async function addQuickNote(walkId: string, text: string, id?: string): Promise<{ error?: string }> {
   const note = text.trim().slice(0, 2000);
   if (!note) return { error: "Say or type something first" };
   const { supabase } = await requireRole("walker", "operator");
-  const { error } = await supabase.from("walk_events").insert({ walk_id: walkId, kind: "note", dog_id: null, note });
+  const row = { walk_id: walkId, kind: "note", dog_id: null, note, ...(id ? { id } : {}) };
+  const { error } = id
+    ? await supabase.from("walk_events").upsert(row, { onConflict: "id", ignoreDuplicates: true })
+    : await supabase.from("walk_events").insert(row);
   revalidatePath(`/walk/${walkId}`);
-  return error ? { error: error.message } : {};
+  return error ? { error: friendly(error, "Didn't save. Tap Save again.") } : {};
 }
 
 const wrapUpSchema = z.object({
@@ -216,7 +237,7 @@ export async function finishWalk(walkId: string, payload: WrapUpPayload): Promis
     p_walk_minutes: walkMinutes,
     p_ended_at: endedAt,
   });
-  if (error) return { error: `Couldn't save the wrap-up: ${error.message}` };
+  if (error) return { error: friendly(error, "Couldn't save the wrap-up. Tap Finish again.") };
   if (result === "already done") redirect(`/walk/${walkId}/done`);
 
   // Report ready: owners get it; on a covered walk, so does the pets' own walker.
@@ -239,6 +260,6 @@ export async function fileIncident(walkId: string | null, _: ActionState, form: 
     what_happened: what,
     action_taken: String(form.get("action_taken") ?? "").trim() || null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   redirect(walkId ? `/walk/${walkId}` : "/home");
 }

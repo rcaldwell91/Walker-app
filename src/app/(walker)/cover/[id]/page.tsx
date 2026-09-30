@@ -7,6 +7,7 @@ import { fetchMyCoverage, inWindow } from "@/lib/coverage";
 import { cancelCoverage } from "../../coverage-actions";
 import { IncomingCoverCard } from "../../cover-cards";
 import { BackBar } from "@/components/back-bar";
+import { readNotificationsFor } from "@/lib/notify";
 
 const STATUS = { open: "Waiting for an answer", accepted: "Accepted", declined: "Declined", cancelled: "Cancelled" } as const;
 
@@ -14,6 +15,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
   const { id } = await params;
   const { error } = await searchParams;
   const { supabase } = await requireRole("walker");
+  await readNotificationsFor(supabase, `/cover/${id}`);
   const tz = await getTimeZone();
   const r = (await fetchMyCoverage(supabase)).find((x) => x.id === id);
   if (!r) notFound();

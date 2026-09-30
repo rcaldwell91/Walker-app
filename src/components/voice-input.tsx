@@ -125,10 +125,11 @@ export function VoiceInput({
 
   return (
     <div className="relative">
+      {/* What's being heard shows inside the box, so nothing below it moves. */}
       <textarea
         name={name}
-        value={value}
-        onChange={(e) => set(e.target.value)}
+        value={speech.interim ? `${value}${value ? " " : ""}${speech.interim}…` : value}
+        onChange={(e) => set(speech.interim ? e.target.value.replace(/\s*\S*…$/, "") : e.target.value)}
         placeholder={placeholder}
         rows={rows}
         autoFocus={autoFocus}
@@ -136,15 +137,18 @@ export function VoiceInput({
         className={`${inputClass} ${speech.supported ? "pr-14" : ""} ${className}`}
       />
       {name ? <input type="hidden" name={`${name}_raw`} value={rawRef.current.join(" ")} readOnly /> : null}
-      {speech.interim ? <p className="mt-1 text-sm italic text-muted">{speech.interim}…</p> : null}
-      {speech.blocked ? <p className="mt-1 text-sm text-warn">Can&apos;t use the microphone. Type instead, or allow it in settings.</p> : null}
+      {speech.blocked ? (
+        <p className="pointer-events-none absolute bottom-1.5 left-2 right-14 truncate rounded-md bg-card px-1 text-xs text-warn" role="status">
+          Microphone blocked. Type instead.
+        </p>
+      ) : null}
       {speech.supported ? (
         <button
           type="button"
           onClick={speech.listening ? speech.stop : speech.start}
           aria-label={speech.listening ? "Stop listening" : "Talk instead of typing"}
           className={`absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full ${
-            speech.listening ? "animate-pulse bg-warn text-warn-fg" : "bg-accent text-accent-fg"
+            speech.listening ? "animate-pulse bg-voice text-bg" : "bg-accent text-accent-fg"
           }`}
         >
           <MicIcon />

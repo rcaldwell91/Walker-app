@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useEffect, useState } from "react";
 import type { Platform } from "@/lib/device";
 import { Button } from "@/components/ui";
@@ -153,7 +155,9 @@ export function useNativeInstallPrompt() {
   return evt;
 }
 
-export function InstallGuide({ platform, onClose }: { platform: Platform; onClose?: () => void }) {
+export function InstallGuide({ platform, onClose, doneHref }: { platform: Platform; onClose?: () => void; doneHref?: string }) {
+  const router = useRouter();
+  const done = onClose ?? (() => router.push(doneHref ?? "/"));
   const [which, setWhich] = useState<"ios" | "android">(platform === "android" ? "android" : "ios");
   const [step, setStep] = useState(0);
   const native = useNativeInstallPrompt();
@@ -189,22 +193,12 @@ export function InstallGuide({ platform, onClose }: { platform: Platform; onClos
           onClick={async () => {
             await native.prompt();
             const { outcome } = await native.userChoice;
-            if (outcome === "accepted") onClose?.();
+            if (outcome === "accepted") done();
           }}
         >
           Install the app
         </Button>
       ) : null}
-
-      <div className="rounded-2xl border border-border bg-card p-4 text-center" aria-live="polite">
-        <p className="text-xs uppercase tracking-wide text-muted">
-          Step {step + 1} of {steps.length}
-        </p>
-        <div className="my-3">{s.art}</div>
-        <p className="font-medium">{s.title}</p>
-        <p className="mt-1 text-sm text-muted">{s.body}</p>
-        {step === 0 ? <AppAddress /> : null}
-      </div>
 
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="flex-1" disabled={step === 0} onClick={() => setStep(step - 1)}>
@@ -215,11 +209,21 @@ export function InstallGuide({ platform, onClose }: { platform: Platform; onClos
             Next
           </Button>
         ) : (
-          <Button type="button" className="flex-1" onClick={onClose}>
+          <Button type="button" className="flex-1" onClick={done}>
             Done
           </Button>
         )}
       </div>
+      <div className="rounded-2xl border border-border bg-card p-4 text-center" aria-live="polite">
+        <p className="text-xs uppercase tracking-wide text-muted">
+          Step {step + 1} of {steps.length}
+        </p>
+        <div className="my-3">{s.art}</div>
+        <p className="font-medium">{s.title}</p>
+        <p className="mt-1 text-sm text-muted">{s.body}</p>
+        {step === 0 ? <AppAddress /> : null}
+      </div>
+
     </div>
   );
 }

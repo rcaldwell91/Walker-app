@@ -26,10 +26,10 @@ export default function JoinForm({
       <Field label="Choose a password">
         <Input name="password" type="password" autoComplete="new-password" minLength={8} required />
       </Field>
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending}>
         {pending ? "Setting up…" : "Continue"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

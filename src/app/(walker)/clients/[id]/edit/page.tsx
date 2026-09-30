@@ -13,7 +13,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
   return (
     <>
       <PageTitle>Edit {client.name}</PageTitle>
-      <ClientForm action={updateClientAction.bind(null, id)} initial={client} />
+      <ClientForm action={updateClientAction.bind(null, id)} initial={client} draftId={`client:${id}`} />
       <BackBar href={`/clients/${client.id}`} label={client.name} />
     </>
   );

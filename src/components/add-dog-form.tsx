@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { addDogAction } from "@/app/(walker)/clients/actions";
-import { Button, ErrorText, Input } from "@/components/ui";
+import { Button, FormStatus, Input } from "@/components/ui";
 
 export function AddDogForm({ clientId }: { clientId: string }) {
   const [open, setOpen] = useState(false);
@@ -15,12 +15,14 @@ export function AddDogForm({ clientId }: { clientId: string }) {
     );
   }
   return (
-    <form action={action} className="flex gap-2">
-      <Input name="name" placeholder="Pet's name" autoFocus required />
-      <Button type="submit" disabled={pending}>
-        Add
-      </Button>
-      <ErrorText>{state?.error}</ErrorText>
+    <form action={action} className="flex flex-col gap-1">
+      <div className="flex gap-2">
+        <Input name="name" placeholder="Pet's name" autoFocus required />
+        <Button type="submit" disabled={pending} className="w-24 shrink-0">
+          {pending ? "Adding…" : "Add"}
+        </Button>
+      </div>
+      <FormStatus error={state?.error} />
     </form>
   );
 }

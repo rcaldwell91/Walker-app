@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { PUSH_KINDS, type PushKind } from "@/lib/push-kinds";
+import { friendly } from "@/lib/errors";
 
 type Sub = { endpoint: string; keys: { p256dh: string; auth: string } };
 
@@ -20,7 +21,7 @@ export async function savePushSubscription(sub: Sub, userAgent?: string) {
     auth: sub.keys.auth,
     user_agent: (userAgent ?? "").slice(0, 300) || null,
   });
-  return error ? { error: error.message } : { ok: true };
+  return error ? { error: friendly(error) } : { ok: true };
 }
 
 export async function removePushSubscription(endpoint: string) {
@@ -30,14 +31,16 @@ export async function removePushSubscription(endpoint: string) {
 }
 
 /** Save which kinds of push this person has turned off. */
-export async function setNotifyOff(form: FormData) {
+export async function setNotifyOff(onKinds: string[]): Promise<{ error?: string }> {
   const s = await getSession();
-  if (!s) return;
-  const on = new Set(form.getAll("on").map(String));
+  if (!s) return { error: "Log in again to change this." };
+  const on = new Set(onKinds);
   const off = PUSH_KINDS.map((k) => k.key).filter((k) => !on.has(k)) as PushKind[];
-  await s.supabase.from("profiles").update({ notify_off: off }).eq("id", s.user.id);
+  const { error } = await s.supabase.from("profiles").update({ notify_off: off }).eq("id", s.user.id);
+  if (error) return { error: friendly(error, "Didn't save. Tap it again.") };
   revalidatePath("/profile");
   revalidatePath("/my/more");
+  return {};
 }
 
 /** Opened from the home screen: stop showing the walkthrough. */

@@ -9,6 +9,7 @@ import { dateKey, fmtDateKey, isDateKey } from "@/lib/time";
 import { billNow, METHOD_LABEL, summarize, INVOICE_FIELDS, type Schedule } from "@/lib/billing";
 import { cents } from "@/lib/format";
 import { clientProfileId, notify } from "@/lib/notify";
+import { friendly } from "@/lib/errors";
 
 export type MoneyState = { error?: string; done?: number } | undefined;
 
@@ -68,7 +69,7 @@ export async function addLine(invoiceId: string, _: MoneyState, form: FormData):
     occurred_on: d.occurred_on,
     unit_cents: unit,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   refresh(invoiceId);
   return { done: Date.now() };
 }
@@ -91,7 +92,7 @@ export async function updateLine(lineId: string, invoiceId: string, _: MoneyStat
     .update({ description: parsed.data.description, unit_cents: cents, quantity: 1 })
     .eq("id", lineId)
     .eq("invoice_id", invoiceId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   refresh(invoiceId);
   return { done: Date.now() };
 }
@@ -152,7 +153,7 @@ export async function recordPayment(invoiceId: string, _: MoneyState, form: Form
     received_on: parsed.data.received_on,
     note: parsed.data.note || null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   const left = s.balance - amount;
   await notify([await clientProfileId(data.client_id)], {
     kind: "payment",
@@ -178,7 +179,7 @@ export async function voidInvoice(invoiceId: string) {
   const { data: inv } = await supabase.from("invoices").select("id, client_id, number, status").eq("id", invoiceId).eq("walker_id", user.id).maybeSingle();
   if (!inv || inv.status !== "sent") return;
   const { error } = await supabase.from("invoices").update({ status: "void" }).eq("id", invoiceId);
-  if (error) redirect(`/money/invoices/${invoiceId}?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/money/invoices/${invoiceId}?error=${encodeURIComponent(friendly(error, "Couldn't void it. Try again."))}`);
   const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   await notify([await clientProfileId(inv.client_id)], {
     kind: "invoice",

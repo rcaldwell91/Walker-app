@@ -4,13 +4,16 @@ import { Empty, PageTitle } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 
+const stayOf = (p: { stay_update?: { stay_id: string } | { stay_id: string }[] | null }) =>
+  (Array.isArray(p.stay_update) ? p.stay_update[0] : p.stay_update)?.stay_id ?? null;
+
 export default async function MyPhotosPage() {
   const { supabase } = await requireRole("client");
   const tz = await getTimeZone();
   // RLS returns photos of this owner's dogs and whole-group photos from their walks.
   const { data: photos } = await supabase
     .from("photos")
-    .select("id, storage_path, caption, taken_at, created_at, walk_id, dog:dogs(name)")
+    .select("id, storage_path, caption, taken_at, created_at, walk_id, dog:dogs(name), stay_update:stay_updates(stay_id)")
     .order("created_at", { ascending: false })
     .limit(300);
 
@@ -32,7 +35,7 @@ export default async function MyPhotosPage() {
             const dog = Array.isArray(p.dog) ? p.dog[0] : p.dog;
             return (
               <li key={p.id} className="overflow-hidden rounded-xl bg-border">
-                <Link href={p.walk_id ? `/my/walks/${p.walk_id}` : "#"}>
+                <Link href={p.walk_id ? `/my/walks/${p.walk_id}` : stayOf(p) ? `/my/stays/${stayOf(p)}` : "/my/photos"}>
                   {url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={url} alt={p.caption ?? dog?.name ?? "Walk photo"} className="aspect-square w-full object-cover" loading="lazy" />

@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { AppSetup } from "@/components/app-setup";
 import { platformFrom } from "@/lib/device";
 import { logout } from "@/app/(auth)/actions";
+import { PendingPhotoSender } from "@/lib/photo-queue";
 
 export default async function WalkerLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user, profile } = await requireRole("walker", "operator");
@@ -29,6 +30,7 @@ export default async function WalkerLayout({ children }: { children: React.React
   return (
     <TimeZoneProvider tz={tz}>
       <AppSetup platform={platform} showGuide={showGuide} />
+      <PendingPhotoSender />
       <div className="mx-auto max-w-md px-4 pb-40 pt-6">
         {me?.status === "paused" ? (
           <p className="mb-4 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn" data-paused>

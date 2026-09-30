@@ -16,7 +16,7 @@ export function ThisDevicePush() {
   }, []);
   return (
     <div data-this-device={state}>
-      <p className="text-sm">
+      <p className="min-h-10 text-sm">
         <span className="font-medium">This device: </span>
         {state === "on"
           ? "notifications are on."
@@ -25,7 +25,7 @@ export function ThisDevicePush() {
             : state === "unsupported"
               ? "this browser can't show notifications. On iPhone, add the app to your home screen first."
               : state === "checking"
-                ? "…"
+                ? "checking…"
                 : "notifications are off."}
       </p>
       {state === "off" ? (
@@ -41,7 +41,9 @@ export function ThisDevicePush() {
           Turn on notifications
         </Button>
       ) : null}
-      {msg ? <p className="mt-1 text-sm text-warn">{msg}</p> : null}
+      <p className="mt-1 min-h-5 text-sm text-warn" role="status">
+        {msg}
+      </p>
     </div>
   );
 }

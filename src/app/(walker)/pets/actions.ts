@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { clientProfileId, notify } from "@/lib/notify";
+import { friendly } from "@/lib/errors";
 
-export type ActionState = { error?: string; ok?: boolean } | undefined;
+export type ActionState = { error?: string; ok?: boolean; at?: number } | undefined;
 
 export async function updateDog(dogId: string, _: ActionState, form: FormData): Promise<ActionState> {
   const { supabase } = await requireRole("walker", "operator");
@@ -15,9 +16,9 @@ export async function updateDog(dogId: string, _: ActionState, form: FormData): 
   }
   if (payload.name === "") return { error: "Your pet needs a name" };
   const { error } = await supabase.from("dogs").update(payload).eq("id", dogId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath(`/pets/${dogId}`);
-  return { ok: true };
+  return { ok: true, at: Date.now() };
 }
 
 export async function assignHomework(dogId: string, _: ActionState, form: FormData): Promise<ActionState> {
@@ -31,7 +32,7 @@ export async function assignHomework(dogId: string, _: ActionState, form: FormDa
     instructions: String(form.get("instructions") ?? "").trim() || null,
     due_at: String(form.get("due_at") ?? "") || null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   const { data: dog } = await supabase.from("dogs").select("name, client_id").eq("id", dogId).maybeSingle();
   if (dog) {
     await notify([await clientProfileId(dog.client_id)], {
@@ -42,5 +43,5 @@ export async function assignHomework(dogId: string, _: ActionState, form: FormDa
     });
   }
   revalidatePath(`/pets/${dogId}`);
-  return { ok: true };
+  return { ok: true, at: Date.now() };
 }

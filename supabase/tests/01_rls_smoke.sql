@@ -629,6 +629,18 @@ do $$ begin
     if sqlerrm = 'SHOULD_FAIL' then raise exception 'Client re-tagged a photo to see it'; end if;
   end;
 end $$;
+-- The walker's setting (0024): untagged photos to no one. Then back on for the rest of the test.
+select _as('00000000-0000-0000-0000-00000000000a');
+update walkers set untagged_photos_to_all = false where id = '00000000-0000-0000-0000-00000000000a';
+select _as('00000000-0000-0000-0000-0000000000f2');
+do $$ begin
+  if exists (select 1 from photos where storage_path = 'a/f1/group.jpg') or exists (select 1 from storage.objects where name = 'a/f1/group.jpg') then
+    raise exception 'Untagged photo shown although the walker set untagged photos to no one';
+  end if;
+  if not exists (select 1 from photos where storage_path = 'a/f1/both.jpg') then raise exception 'Tagged photos should still show'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+update walkers set untagged_photos_to_all = true where id = '00000000-0000-0000-0000-00000000000a';
 select _as('00000000-0000-0000-0000-00000000000b');
 do $$ begin
   if exists (select 1 from pet_scores) or exists (select 1 from photo_pets) then raise exception 'Unrelated walker sees scores or tags'; end if;
@@ -839,6 +851,22 @@ do $$ begin
     raise exception 'Stay should bill $160 in two lines, got %', (select string_agg(description || '=' || amount_cents, '; ') from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001');
   end if;
 end $$;
+-- Early pick-up (0024): with 'actual', a 3-night stay picked up after 1 night bills 1 night.
+select _as('00000000-0000-0000-0000-00000000000a');
+update walkers set boarding_early_pickup = 'actual' where id = '00000000-0000-0000-0000-00000000000a';
+insert into boarding_stays (id, walker_id, client_id, starts_at, ends_at, start_day, end_day, nights, night_cents, extra_pet_cents, price_cents) values
+  ('80000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001',
+   now() - interval '1 day', now() + interval '2 days', current_date - 1, current_date + 2, 3, 5000, 3000, 15000);
+insert into stay_pets (stay_id, dog_id) values ('80000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001');
+do $$ begin
+  perform end_stay('80000000-0000-0000-0000-000000000002');
+  if (select sum(amount_cents) from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000002') <> 5000
+     or (select quantity from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000002' and kind = 'stay') <> 1 then
+    raise exception 'Early pick-up with "bill nights stayed" should bill 1 night ($50), got %',
+      (select string_agg(description || '=' || amount_cents, '; ') from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000002');
+  end if;
+end $$;
+update walkers set boarding_early_pickup = 'booked' where id = '00000000-0000-0000-0000-00000000000a';
 -- Voiding the invoice a stay was on sends the stay back to unbilled (0023), like a walk.
 insert into invoices (id, walker_id, client_id, period_start, period_end, number) values
   ('60000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', current_date, current_date, 0);

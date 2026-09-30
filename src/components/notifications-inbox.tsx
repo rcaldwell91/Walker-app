@@ -4,15 +4,21 @@ import { markNotificationsRead } from "@/app/push-actions";
 import { Card } from "@/components/ui";
 import { fmtTime } from "@/lib/format";
 
-/** Unread in-app notifications (the same things that were pushed). */
-export async function NotificationsInbox({ supabase, tz }: { supabase: SupabaseClient; tz: string }) {
-  const { data } = await supabase
+/**
+ * Unread in-app notifications (the same things that were pushed). Ones that
+ * point at this page are left out (the page already shows them) and count as read.
+ */
+export async function NotificationsInbox({ supabase, tz, here }: { supabase: SupabaseClient; tz: string; here: string }) {
+  const { data: all } = await supabase
     .from("notifications")
     .select("id, title, body, url, created_at")
     .is("read_at", null)
     .order("created_at", { ascending: false })
-    .limit(5);
-  if (!data?.length) return null;
+    .limit(20);
+  const shownHere = (all ?? []).filter((n) => n.url === here).map((n) => n.id);
+  if (shownHere.length) await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", shownHere);
+  const data = (all ?? []).filter((n) => n.url !== here).slice(0, 5);
+  if (!data.length) return null;
   return (
     <Card className="mb-4" data-inbox={data.length}>
       <div className="mb-2 flex items-center justify-between">

@@ -21,8 +21,11 @@ type Dog = {
 export function DogEditForm({ dog }: { dog: Dog }) {
   const [state, action, pending] = useActionState(updateDog.bind(null, dog.id), undefined);
   const [more, setMore] = useState(false);
+  // "Saved" is about what's on screen: any change after saving takes it away.
+  const [editedAt, setEditedAt] = useState(0);
+  const savedNow = !!state?.ok && !pending && (state.at ?? 0) > editedAt;
   return (
-    <form action={action}>
+    <form action={action} onChange={() => setEditedAt(Date.now())}>
       <Card className="flex flex-col gap-3">
         <Field label="Working on">
           <Input name="working_on" defaultValue={dog.working_on} placeholder="e.g. wait and stay" />
@@ -43,10 +46,10 @@ export function DogEditForm({ dog }: { dog: Dog }) {
             Edit details…
           </button>
         )}
-        <ErrorText>{state?.error}</ErrorText>
         <Button type="submit" variant="secondary" disabled={pending}>
-          {state?.ok && !pending ? "Saved" : pending ? "Saving…" : "Save"}
+          {savedNow ? "Saved" : pending ? "Saving…" : "Save"}
         </Button>
+        <ErrorText>{state?.error}</ErrorText>
       </Card>
     </form>
   );

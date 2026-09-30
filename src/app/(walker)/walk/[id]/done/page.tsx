@@ -6,6 +6,7 @@ import { cents, fmtDuration, fmtTime } from "@/lib/format";
 import { EVENT_LABELS } from "@/lib/events";
 import { fmtHours } from "@/lib/hours";
 import { ClearDraft } from "@/components/clear-draft";
+import { BackBar } from "@/components/back-bar";
 
 export default async function WalkDonePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,17 +52,18 @@ export default async function WalkDonePage({ params }: { params: Promise<{ id: s
             {walk.tips.map((t, i) => (
               <li key={i}>
                 {cents(t.amount_cents)} from {(Array.isArray(t.client) ? t.client[0] : t.client)?.name ?? "a client"}
-                {t.status === "pending" ? <span className="text-muted"> · payout once payments are set up</span> : null}
+                {t.status === "pending" ? <span className="text-muted"> · not paid through the app yet</span> : null}
               </li>
             ))}
           </ul>
         </Card>
       ) : null}
-      <p className="mb-4 text-sm text-muted">Owners can see this report now.</p>
+      <p className="mb-4 text-sm text-muted">Owners with the app can see this report now.</p>
       <LinkButton href="/home" className="w-full">
         Back to today
       </LinkButton>
-      <ClearDraft storageKey={`wrapup:${walk.id}`} />
+      <ClearDraft storageKeys={[`wrapup:${walk.id}`, `talk:${walk.id}`, `note-draft:${walk.id}`]} />
+      <BackBar href="/home" label="Today" />
     </>
   );
 }

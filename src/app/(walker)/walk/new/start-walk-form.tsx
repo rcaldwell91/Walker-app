@@ -18,7 +18,9 @@ export function StartWalkForm({
   services,
   parks,
   initialPark = "",
+  etaMph = 25,
 }: {
+  etaMph?: number;
   initialSelected?: string[];
   dogs: Dog[];
   stops: Stop[];
@@ -68,7 +70,7 @@ export function StartWalkForm({
     if (hasCoords(s)) {
       if (prev) {
         const d = distanceM(prev, s);
-        detail = `${miles(d).toFixed(1)} mi · ~${etaMinutes(d)} min${prev === here ? " from you" : ""}`;
+        detail = `${miles(d).toFixed(1)} mi · ~${etaMinutes(d, etaMph)} min${prev === here ? " from you" : ""}`;
       } else detail = "First stop";
       prev = s;
     }
@@ -195,10 +197,10 @@ export function StartWalkForm({
         <ParkPicker parks={parks} from={lastStop && hasCoords(lastStop) ? { lat: lastStop.lat, lng: lastStop.lng } : here} value={trailId} onChange={setTrailId} />
       </div>
 
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending || selected.size === 0} className="h-14 text-lg">
-        {selected.size ? `Start with ${selected.size} pet${selected.size > 1 ? "s" : ""}` : "Pick your pets"}
+        {pending ? "Starting…" : selected.size ? `Start with ${selected.size} pet${selected.size > 1 ? "s" : ""}` : "Pick your pets"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { TZ_COOKIE } from "@/lib/time";
 
 // Matched by whole path segment: "/w" covers "/w" and "/w/anything", never "/walk".
-const PUBLIC_PREFIXES = ["/login", "/signup", "/join", "/auth", "/w", "/sw.js", "/manifest.webmanifest", "/icons"];
+const PUBLIC_PREFIXES = ["/login", "/signup", "/forgot", "/join", "/auth", "/w", "/sw.js", "/manifest.webmanifest", "/icons"];
 
 export function isPublic(pathname: string) {
   if (pathname === "/") return true;

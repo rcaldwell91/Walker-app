@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
+import { friendly } from "@/lib/errors";
 
 export type FoundWalker = { id: string; handle: string; full_name: string; business_name: string; avatar_url: string | null };
 export type FindState = { error?: string; found?: FoundWalker; sent?: string } | undefined;
@@ -31,7 +32,7 @@ export async function sendLinkRequest(walkerId: string): Promise<FindState> {
   const { error } = mine
     ? await supabase.from("squad_links").update({ status: "pending" }).eq("id", mine.id)
     : await supabase.from("squad_links").insert({ requester_id: user.id, recipient_id: walkerId });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath("/squad");
   return { sent: walkerId };
 }

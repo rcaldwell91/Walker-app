@@ -10,16 +10,18 @@ import { addDays, dateKey, fmtDateKey } from "@/lib/time";
 import type { PetBoarding } from "@/lib/boarding";
 import { StayIntakeForm } from "./intake-form";
 import { CancelStayButton } from "./cancel-button";
+import { readNotificationsFor } from "@/lib/notify";
 
 export default async function StayPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ posted?: string }> }) {
   const { id } = await params;
   const { posted } = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
+  await readNotificationsFor(supabase, `/boarding/${id}`);
   const tz = await getTimeZone();
   const { data: stay } = await supabase
     .from("boarding_stays")
     .select(
-      "id, starts_at, ends_at, start_day, end_day, nights, price_cents, notes, status, client:clients(id, name, emergency_contact, boarding_bringing), stay_pets(dog:dogs(id, name, boarding)), stay_updates(id, day, posted_at, note)",
+      "id, starts_at, ends_at, start_day, end_day, nights, price_cents, notes, status, client:clients(id, name, profile_id, emergency_contact, boarding_bringing), stay_pets(dog:dogs(id, name, boarding)), stay_updates(id, day, posted_at, note)",
     )
     .eq("id", id)
     .eq("walker_id", user.id)
@@ -56,7 +58,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
 
       {posted ? (
         <p className="mb-3 rounded-xl bg-accent/10 px-3 py-2 text-sm text-accent" role="status" data-posted>
-          Update for {fmtDateKey(posted)} posted. {client?.name} can see it now.
+          Update for {fmtDateKey(posted)} posted. {client?.profile_id ? `${client.name} can see it now.` : `${client?.name} will see it once they join the app.`}
         </p>
       ) : null}
 

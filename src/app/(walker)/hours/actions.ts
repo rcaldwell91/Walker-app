@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { isDateKey } from "@/lib/time";
+import { friendly } from "@/lib/errors";
 
 export type TimeOffState = { error?: string; done?: number } | undefined;
 
@@ -14,7 +15,7 @@ export async function addTimeOff(_: TimeOffState, form: FormData): Promise<TimeO
   if (to < from) return { error: "The last day comes after the first" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { error } = await supabase.from("walker_time_off").insert({ walker_id: user.id, starts_on: from, ends_on: to, note });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath("/hours");
   revalidatePath("/schedule");
   return { done: Date.now() };

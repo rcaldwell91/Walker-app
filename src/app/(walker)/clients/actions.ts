@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { saveClientCoordinates } from "@/lib/geo/geocode";
+import { friendly } from "@/lib/errors";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -33,7 +34,7 @@ export async function createClientAction(_: ActionState, form: FormData): Promis
     .insert({ ...d, email: d.email || null, walker_id: user.id })
     .select("id")
     .single();
-  if (error || !client) return { error: error?.message ?? "Couldn't save" };
+  if (error || !client) return { error: friendly(error, "Couldn't save. Try again.") };
 
   // The client is saved at this point, so a dog or invite failure is reported on
   // their page (which has "Add a dog" and "Make a new link") rather than here.
@@ -42,16 +43,17 @@ export async function createClientAction(_: ActionState, form: FormData): Promis
     const { error: dErr } = await supabase
       .from("dogs")
       .insert({ client_id: client.id, walker_id: user.id, name: dog_name.trim() });
-    if (dErr) problems.push(`Couldn't add ${dog_name.trim()}: ${dErr.message}`);
+    if (dErr) problems.push(`Couldn't add ${dog_name.trim()}. Add them on the client page.`);
   }
   const { error: iErr } = await supabase.from("client_invites").insert({ walker_id: user.id, client_id: client.id });
-  if (iErr) problems.push(`Couldn't make their invite link: ${iErr.message}`);
+  if (iErr) problems.push("Couldn't make their invite link. Tap New link on their page.");
 
   if (!(await saveClientCoordinates(supabase, client.id, d.address_line, d.city))) {
     problems.push(NOT_ON_MAP);
   }
 
-  const q = problems.length ? `?error=${encodeURIComponent(problems.join(" "))}` : "";
+  // One message: the first thing that needs doing.
+  const q = problems.length ? `?error=${encodeURIComponent(problems[0])}` : "";
   redirect(`/clients/${client.id}${q}`);
 }
 
@@ -64,7 +66,7 @@ export async function updateClientAction(id: string, _: ActionState, form: FormD
     .from("clients")
     .update({ ...parsed.data, email: parsed.data.email || null })
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
 
   // Only hit the geocoder when the address changed (or never got placed).
   const d = parsed.data;
@@ -93,7 +95,7 @@ export async function addDogAction(clientId: string, _: ActionState, form: FormD
     .insert({ client_id: clientId, walker_id: user.id, name })
     .select("id")
     .single();
-  if (error || !data) return { error: error?.message ?? "Couldn't save" };
+  if (error || !data) return { error: friendly(error, "Couldn't save. Try again.") };
   redirect(`/pets/${data.id}`);
 }
 
@@ -117,7 +119,7 @@ export async function rateClient(clientId: string, _: RatingState, form: FormDat
     score: parsed.data.score,
     comment: parsed.data.comment || null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath(`/clients/${clientId}`);
   return { done: Date.now() };
 }

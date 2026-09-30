@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
+import { friendly } from "@/lib/errors";
 
 export type ProfileState = { error?: string; saved?: number } | undefined;
 
@@ -46,7 +47,7 @@ export async function setAvatar(publicUrl: string) {
   if (!publicUrl.startsWith(prefix)) return { error: "That photo isn't yours" };
   const { error } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
   revalidatePath("/profile");
-  return error ? { error: error.message } : {};
+  return error ? { error: friendly(error) } : {};
 }
 
 /** Called after the browser uploads proof to documents/{userId}/… Resets verification (see migration 0009). */
@@ -55,7 +56,7 @@ export async function setBackgroundCheck(path: string) {
   if (!path.startsWith(`${user.id}/`) || path.includes("..")) return { error: "That file isn't yours" };
   const { error } = await supabase.from("walkers").update({ background_check_path: path }).eq("id", user.id);
   revalidatePath("/profile");
-  return error ? { error: error.message } : {};
+  return error ? { error: friendly(error) } : {};
 }
 
 /** A photo of the walker's boarding space, already uploaded to avatars/{userId}/space-*.jpg. */
@@ -63,7 +64,7 @@ export async function addSpacePhoto(path: string, caption: string): Promise<{ er
   const { supabase, user } = await requireRole("walker", "operator");
   if (!path.startsWith(`${user.id}/space-`)) return { error: "That upload isn't yours" };
   const { error } = await supabase.from("walker_space_photos").insert({ walker_id: user.id, storage_path: path, caption: caption.trim().slice(0, 120) || null });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath("/profile");
   return {};
 }

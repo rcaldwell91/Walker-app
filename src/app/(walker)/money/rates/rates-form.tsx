@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { saveRates } from "./actions";
-import { Button, Card, ErrorText, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input, FormStatus } from "@/components/ui";
 
 export type RateRow = { id: string; name: string; defaultDuration: number; enabled: boolean; rate: string; duration: number | null };
 
@@ -31,15 +31,10 @@ export function RatesForm({ services }: { services: RateRow[] }) {
         ))}
       </ul>
       <p className="text-xs text-muted">Checked services show on your public page with their rate. Finished walks bill at these rates.</p>
-      <ErrorText>{state?.error}</ErrorText>
-      {state?.saved ? (
-        <p className="text-sm text-accent" role="status">
-          Saved.
-        </p>
-      ) : null}
       <Button type="submit" disabled={pending} className="h-14 text-lg">
         {pending ? "Saving…" : "Save rates"}
       </Button>
+      <FormStatus error={state?.error} ok={state?.saved && "Saved."} />
     </form>
   );
 }

@@ -58,7 +58,7 @@ export default async function MoneyPage() {
 
   return (
     <>
-      <PageTitle sub="Finished walks become invoice lines at your rate. Drafts appear here when a billing period ends.">Money</PageTitle>
+      <PageTitle sub="Invoices to check and send, payments, tips.">Money</PageTitle>
 
       <div className="mb-4">
         <NavList items={[{ href: "/money/rates", label: "My rates", sub: "What you charge for walks and visits" }]} />
@@ -128,8 +128,7 @@ export default async function MoneyPage() {
         )}
         {unbilledTotal ? (
           <p className="mt-2 text-sm text-muted" data-unbilled={unbilledTotal}>
-            {cents(unbilledTotal)} of finished walks not invoiced yet. It&apos;ll be drafted when each client&apos;s period ends,
-            or tap Bill now on a client.
+            {cents(unbilledTotal)} not invoiced yet. Bill a client now from their page.
           </p>
         ) : null}
       </section>
@@ -163,7 +162,7 @@ export default async function MoneyPage() {
       <section className="mb-6" aria-labelledby="tips">
         <h2 id="tips" className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Tips</h2>
         {!liveTips.length ? (
-          <Empty>Clients can tip after a walk. Tips are recorded now and paid out once card payments are set up.</Empty>
+          <Empty>Clients can leave a tip after a walk. Tips aren&apos;t paid through the app yet.</Empty>
         ) : (
           <ul className="flex flex-col divide-y divide-border rounded-2xl border border-border bg-card text-sm">
             {liveTips.map((t) => (

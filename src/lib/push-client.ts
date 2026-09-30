@@ -29,12 +29,12 @@ export async function registerServiceWorker() {
 export async function turnOnPush(): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (!pushSupported()) return { ok: false, reason: "This browser can't show notifications. On iPhone, add the app to your home screen first." };
   const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!key) return { ok: false, reason: "Notifications aren't set up on this server yet." };
+  if (!key) return { ok: false, reason: "Notifications aren't available yet." };
   const permission = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
   if (permission !== "granted") return { ok: false, reason: "Notifications are blocked. Turn them on in your browser or phone settings." };
   try {
     const reg = (await navigator.serviceWorker.getRegistration()) ?? (await registerServiceWorker());
-    if (!reg) return { ok: false, reason: "Couldn't start the app's background worker." };
+    if (!reg) return { ok: false, reason: "Couldn't turn on notifications. Reload and try again." };
     await navigator.serviceWorker.ready;
     const sub =
       (await reg.pushManager.getSubscription()) ??
@@ -42,7 +42,7 @@ export async function turnOnPush(): Promise<{ ok: true } | { ok: false; reason: 
     const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
     const res = await savePushSubscription(json, navigator.userAgent);
     return "error" in res && res.error ? { ok: false, reason: res.error } : { ok: true };
-  } catch (e) {
-    return { ok: false, reason: e instanceof Error ? e.message : "Couldn't turn on notifications." };
+  } catch {
+    return { ok: false, reason: "Couldn't turn on notifications. Try again." };
   }
 }

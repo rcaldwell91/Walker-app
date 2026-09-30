@@ -4,9 +4,11 @@ import { Card, Empty, PageTitle } from "@/components/ui";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { ReplyForm } from "./reply-form";
+import { readNotificationsFor } from "@/lib/notify";
 
 export default async function MyMessagesPage() {
   const { supabase, user } = await requireRole("client");
+  await readNotificationsFor(supabase, "/my/messages");
   const tz = await getTimeZone();
   const [{ data: messages }, { data: rows }] = await Promise.all([
     supabase

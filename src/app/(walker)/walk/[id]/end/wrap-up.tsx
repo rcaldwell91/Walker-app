@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { finishWalk, markPickup, sendStatus, type WrapUpPayload } from "../../actions";
+import { useNoteQueue } from "../live-walk";
+import { errorOf, tap } from "@/lib/offline";
 import { interpretWrapUp, type VoiceFill } from "../../voice-actions";
-import { Button, Card, ErrorText, Input, SectionTitle } from "@/components/ui";
+import { Button, Card, Input, SectionTitle } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { LogGrid, PhotoGallery, ScoreGrid, TalkItThrough, VoiceFilledBar } from "@/components/report-parts";
 import { WalkSteps } from "@/components/walk-steps";
@@ -30,7 +32,9 @@ export function WrapUp({
   photos: initialPhotos,
   notes,
   voiceReady,
+  untaggedToAll,
 }: {
+  untaggedToAll: boolean;
   walkId: string;
   walkerId: string;
   serviceName: string;
@@ -146,8 +150,14 @@ export function WrapUp({
     });
   }
 
-  const allPhotos = [...initialPhotos.map((p) => ({ id: p.id, url: p.url, status: "done" as const })), ...queue.items];
-  const sending = queue.pending;
+  const allPhotos = [...initialPhotos.map((p) => ({ id: p.id, url: p.url, status: "done" as const })), ...queue.items.filter((q) => !initialPhotos.some((p) => p.id === q.id))];
+  const uploading = queue.items.filter((i) => i.status === "uploading").length;
+  const later = queue.items.filter((i) => i.status === "queued" || i.status === "error").length;
+  const sentPhotos = allPhotos.filter((p) => p.status === "done").length;
+  // Notes saved during the walk, plus any still waiting on the phone for signal.
+  const noteQueue = useNoteQueue(walkId);
+  const allNotes = [...notes, ...noteQueue.queued.filter((q) => !notes.some((n) => n.id === q.id)).map((q) => ({ id: q.id, note: q.text, at: "" }))];
+  const [dropError, setDropError] = useState<{ id: string; text: string } | null>(null);
 
   function finish() {
     setError(null);
@@ -179,7 +189,7 @@ export function WrapUp({
       <WalkSteps current={3} />
       <div>
         <h1 className="text-2xl font-semibold">Wrap-up</h1>
-        <p className="text-sm text-muted">{serviceName} · Nothing is sent to owners until you tap Finish.</p>
+        <p className="text-sm text-muted">{serviceName} · Owners get the report when you tap Finish.</p>
       </div>
 
       <TalkItThrough
@@ -189,6 +199,7 @@ export function WrapUp({
         emptyPrompt="Say how the walk went first."
         fillLabel="Fill in the wrap-up"
         onFill={applyVoice}
+        draftKey={`talk:${walkId}`}
       />
       {undo ? (
         <VoiceFilledBar
@@ -206,16 +217,24 @@ export function WrapUp({
           <Card className="flex flex-col gap-2">
             {clients.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate font-medium">{c.name}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{c.name}</span>
+                  <span className="block h-4 truncate text-xs text-warn" role={dropError?.id === c.id ? "alert" : undefined}>
+                    {dropError?.id === c.id ? dropError.text : ""}
+                  </span>
+                </span>
                 <Button
                   variant={dropped.has(c.id) ? "secondary" : "primary"}
                   disabled={dropping || dropped.has(c.id)}
+                  className="h-12 w-40 shrink-0"
                   data-dropoff={c.name}
                   onClick={() =>
                     startDrop(async () => {
-                      await sendStatus(walkId, "dropped_off", c.id);
-                      for (const p of pets.filter((x) => x.clientId === c.id)) await markPickup(walkId, p.id, "dropped_off_at");
-                      setDropped((s) => new Set(s).add(c.id));
+                      setDropError(null);
+                      const e = errorOf(await tap(() => sendStatus(walkId, "dropped_off", c.id)));
+                      if (e) return setDropError({ id: c.id, text: e });
+                      for (const p of pets.filter((x) => x.clientId === c.id)) await tap(() => markPickup(walkId, p.id, "dropped_off_at"));
+                      setDropped((s) => new Set(s).add(c.id)); // ✓ only once the owner's message saved
                     })
                   }
                 >
@@ -291,14 +310,15 @@ export function WrapUp({
           })
         }
         onFiles={queue.add}
-        groupHint="Tap the pets in each photo. A photo with none tagged goes to everyone on this walk."
+        onRetry={queue.retry}
+        groupHint={untaggedToAll ? "Tap the pets in each photo. A photo with none tagged goes to everyone on this walk." : "Tap the pets in each photo. Owners only see photos their pets are tagged in."}
       />
 
-      {notes.length ? (
+      {allNotes.length ? (
         <>
           <SectionTitle>Notes from the walk</SectionTitle>
           <Card className="flex flex-col gap-2">
-            {notes.map((n) => (
+            {allNotes.map((n) => (
               <div key={n.id} className="flex items-start justify-between gap-2 text-sm">
                 <p className="min-w-0 whitespace-pre-wrap">{n.note}</p>
                 <button
@@ -329,10 +349,20 @@ export function WrapUp({
         Something happened? File an incident report
       </Link>
 
-      <ErrorText>{error}</ErrorText>
-      <Button className="h-16 text-lg" disabled={finishing || sending > 0} onClick={finish} data-finish>
-        {finishing ? "Sending…" : sending ? `Waiting for ${sending} photo${sending === 1 ? "" : "s"}…` : "Finish walk"}
+      <Button className="h-16 text-lg" disabled={finishing || uploading > 0} onClick={finish} data-finish>
+        <span className="truncate">
+          {finishing
+            ? "Sending…"
+            : uploading
+            ? `Sending photos… ${sentPhotos} of ${sentPhotos + uploading + later}`
+            : later
+            ? `Finish · ${later} photo${later === 1 ? "" : "s"} send later`
+            : "Finish walk"}
+        </span>
       </Button>
+      <p className={`-mt-2 min-h-5 text-center text-sm ${error ? "text-warn" : "text-muted"}`} role="status">
+        {error ?? (later && !uploading ? (untaggedToAll ? "Photos that send later go to everyone on this walk." : "Photos that send later can't be tagged, so owners won't see them.") : "")}
+      </p>
       <BackBar href="/home" label="Today" />
     </div>
   );

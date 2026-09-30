@@ -42,11 +42,13 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
   // Walker's own service types win over platform defaults with the same key.
   const svc = (services ?? []).filter((s) => s.walker_id === user.id || s.walker_id === null);
 
+  const { data: me } = await supabase.from("walkers").select("eta_mph").eq("id", user.id).maybeSingle();
   return (
     <>
       <WalkSteps current={1} />
       <PageTitle sub="Tap the pets you're picking up, or plan it on the Map tab.">Start a walk</PageTitle>
       <StartWalkForm
+        etaMph={me?.eta_mph ?? 25}
         initialSelected={(preselect ?? "").split(",").filter((id) => dogs.some((d) => d.id === id))}
         dogs={dogs}
         stops={stops}

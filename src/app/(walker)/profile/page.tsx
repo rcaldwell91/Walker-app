@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { requireRole } from "@/lib/session";
 import { logout } from "@/app/(auth)/actions";
@@ -66,7 +67,9 @@ export default async function ProfilePage() {
           tips_enabled: walker.tips_enabled,
         }}
       />
-      <p className="mt-2 text-sm text-muted">Your rates are under More → Money → My rates.</p>
+      <Link href="/money/rates" className="mt-2 block min-h-11 py-2 text-sm text-accent underline">
+        Your rates
+      </Link>
 
       <SectionTitle>Appearance</SectionTitle>
       <ThemeToggle initial={isThemeChoice(themeCookie) ? themeCookie : "system"} />

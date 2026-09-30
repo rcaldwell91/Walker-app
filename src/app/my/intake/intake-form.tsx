@@ -6,6 +6,7 @@ import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "@/compo
 import { VoiceInput } from "@/components/voice-input";
 import { BoardingClientFields, BoardingPetFields } from "@/components/boarding-intake";
 import type { PetBoarding } from "@/lib/boarding";
+import { FormDraft } from "@/components/form-draft";
 
 type Dog = {
   id?: string;
@@ -45,6 +46,7 @@ export function IntakeForm({
 
   return (
     <form action={action} className="flex flex-col gap-6">
+      <FormDraft id={`intake:${client.id}`} />
       <input type="hidden" name="client_id" value={client.id} />
 
       <Card className="flex flex-col gap-4">
@@ -126,10 +128,10 @@ export function IntakeForm({
         <BoardingClientFields emergency={client.emergency_contact} bringing={client.boarding_bringing} emergencyName={null} />
       </Card>
 
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

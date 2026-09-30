@@ -87,7 +87,6 @@ function PushAsk({ standalone, onDone }: { standalone: boolean; onDone: () => vo
       <p className="mb-3 text-sm text-muted">
         {standalone ? "You're set up on your home screen. " : ""}Get messages, walk updates and invoices as they happen. You can choose which ones later.
       </p>
-      {msg ? <p className="mb-2 text-sm text-warn">{msg}</p> : null}
       <div className="flex gap-2">
         <Button
           type="button"
@@ -114,9 +113,12 @@ function PushAsk({ standalone, onDone }: { standalone: boolean; onDone: () => vo
             else setMsg(r.reason);
           }}
         >
-          Turn on
+          {busy ? "Turning on…" : "Turn on"}
         </Button>
       </div>
+      <p className="mt-1 min-h-5 text-sm text-warn" role="status">
+        {msg}
+      </p>
     </Card>
   );
 }

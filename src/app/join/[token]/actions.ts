@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { AuthState } from "@/app/(auth)/actions";
+import { friendly } from "@/lib/errors";
 
 const schema = z.object({
   token: z.string().min(10),
@@ -38,7 +39,7 @@ export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthSt
 
   if (cErr) {
     // Existing account (e.g. a client of two walkers). Let them sign in with it.
-    if (!/already/i.test(cErr.message)) return { error: cErr.message };
+    if (!/already/i.test(cErr.message)) return { error: friendly(cErr, "Couldn't create your account. Try again.") };
     const supabase = await createClient();
     const { data: signedIn, error: sErr } = await supabase.auth.signInWithPassword({
       email: d.email,
@@ -50,13 +51,15 @@ export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthSt
     userId = signedIn.user.id;
   } else {
     const supabase = await createClient();
-    await supabase.auth.signInWithPassword({ email: d.email, password: d.password });
+    const { error: sErr } = await supabase.auth.signInWithPassword({ email: d.email, password: d.password });
+    if (sErr) return { error: "Your account is made. Log in with that email and password." };
   }
 
-  await admin
+  const { error: linkErr } = await admin
     .from("clients")
     .update({ profile_id: userId, email: d.email, status: "active", name: d.full_name })
     .eq("id", invite.client_id);
+  if (linkErr) return { error: friendly(linkErr, "Couldn't connect you to your walker. Tap Join again.") };
   await admin.from("client_invites").update({ redeemed_at: new Date().toISOString() }).eq("token", d.token);
 
   redirect(`/my/intake`);

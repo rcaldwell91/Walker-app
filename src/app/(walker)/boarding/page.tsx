@@ -102,12 +102,14 @@ export default async function BoardingPage({ searchParams }: { searchParams: Pro
             const n = byNight.get(d) ?? 0;
             const off = isAway(d);
             const full = cap > 0 && n >= cap;
-            const over = n > cap;
+            const over = cap > 0 && n > cap;
             const inMonth = d.slice(0, 7) === month;
             const tone = off
               ? "bg-border text-muted line-through"
-              : over || full
+              : over
               ? "bg-warn/15 border-warn"
+              : full
+              ? "bg-accent/35 border-accent"
               : n
               ? "bg-accent/15 border-accent"
               : "bg-bg";
@@ -134,8 +136,12 @@ export default async function BoardingPage({ searchParams }: { searchParams: Pro
             Booked (pets / spots)
           </span>
           <span>
-            <span className="mr-1 inline-block h-3 w-3 rounded bg-warn/40 align-middle" />
+            <span className="mr-1 inline-block h-3 w-3 rounded bg-accent/70 align-middle" />
             Full
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-3 w-3 rounded bg-warn/40 align-middle" />
+            Over capacity
           </span>
           <span>
             <span className="mr-1 inline-block h-3 w-3 rounded bg-border align-middle" />
@@ -147,7 +153,14 @@ export default async function BoardingPage({ searchParams }: { searchParams: Pro
       {selected ? (
         <>
           <SectionTitle>Night of {fmtDateKey(selected)}</SectionTitle>
-          {isAway(selected) ? <p className="mb-2 text-sm text-muted">You&apos;re away this day (Schedule &amp; hours → Time off).</p> : null}
+          {isAway(selected) ? (
+            <p className="mb-2 text-sm text-muted">
+              You&apos;re away this day.{" "}
+              <Link href="/hours" className="text-accent underline">
+                Time off
+              </Link>
+            </p>
+          ) : null}
           {onNight.length ? (
             <StayList stays={onNight} />
           ) : (
@@ -172,6 +185,10 @@ export default async function BoardingPage({ searchParams }: { searchParams: Pro
           . Days away come from{" "}
           <Link href="/hours" className="text-accent underline">
             time off
+          </Link>
+          . Usual times and early pick-ups:{" "}
+          <Link href="/settings" className="text-accent underline">
+            Business settings
           </Link>
           .
         </p>

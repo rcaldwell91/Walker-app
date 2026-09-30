@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { ActionState } from "@/app/(walker)/clients/actions";
 import { Button, ErrorText, Field, Input, Textarea } from "@/components/ui";
+import { FormDraft } from "@/components/form-draft";
 
 const COLORS = ["#2f7d5b", "#2b6cb0", "#b3541e", "#8e44ad", "#c0392b", "#d4a017", "#16a085", "#7f8c8d"];
 
@@ -22,7 +23,10 @@ export function ClientForm({
   initial = {},
   showDog = false,
   submitLabel = "Save",
+  draftId = "client:new",
 }: {
+  /** Where typed text is kept on the phone until it's saved. */
+  draftId?: string;
   action: (state: ActionState, form: FormData) => Promise<ActionState>;
   initial?: ClientFormValues;
   showDog?: boolean;
@@ -31,6 +35,7 @@ export function ClientForm({
   const [state, formAction, pending] = useActionState(action, undefined);
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <FormDraft id={draftId} />
       <Field label="Client name">
         <Input name="name" defaultValue={initial.name ?? ""} required autoFocus />
       </Field>
@@ -39,7 +44,7 @@ export function ClientForm({
           <Input name="dog_name" />
         </Field>
       ) : null}
-      <Field label="Email" hint="Their invite link goes here if you want us to send it.">
+      <Field label="Email" hint="Optional. For your records.">
         <Input name="email" type="email" defaultValue={initial.email ?? ""} />
       </Field>
       <Field label="Phone">
@@ -76,10 +81,10 @@ export function ClientForm({
           ))}
         </div>
       </Field>
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : submitLabel}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

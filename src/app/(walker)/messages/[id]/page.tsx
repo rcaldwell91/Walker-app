@@ -5,10 +5,12 @@ import { fmtDate, fmtTime } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { MessageForm } from "./message-form";
 import { BackBar } from "@/components/back-bar";
+import { readNotificationsFor } from "@/lib/notify";
 
 export default async function ClientMessagesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, user } = await requireRole("walker", "operator");
+  await readNotificationsFor(supabase, `/messages/${id}`);
   const tz = await getTimeZone();
   const [{ data: client }, { data: newestFirst }] = await Promise.all([
     supabase.from("clients").select("id, name, status, profile_id").eq("id", id).eq("walker_id", user.id).maybeSingle(),

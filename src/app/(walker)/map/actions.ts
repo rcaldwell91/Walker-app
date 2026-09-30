@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { friendly } from "@/lib/errors";
 import { requireRole } from "@/lib/session";
 import { geocodeAddress } from "@/lib/geo/geocode";
 import { PARK_FEATURE_KEYS } from "@/lib/parks";
@@ -38,7 +39,7 @@ export async function createPark(_: ParkState, form: FormData): Promise<ParkStat
     })
     .select("id")
     .single();
-  if (error || !data) return { error: error?.message ?? "Couldn't save the park" };
+  if (error || !data) return { error: friendly(error, "Couldn't save the park. Try again.") };
   revalidatePath("/map");
   revalidatePath("/walk/new");
   return { savedId: data.id };
@@ -48,15 +49,19 @@ export async function createPark(_: ParkState, form: FormData): Promise<ParkStat
 export async function setParkFeatures(parkId: string, features: string[]) {
   const { supabase, user } = await requireRole("walker", "operator");
   const clean = features.filter((f) => PARK_FEATURE_KEYS.has(f));
-  await supabase.from("trails").update({ features: clean, good_for_rain: clean.includes("rain") }).eq("id", parkId).eq("walker_id", user.id);
+  const { error } = await supabase.from("trails").update({ features: clean, good_for_rain: clean.includes("rain") }).eq("id", parkId).eq("walker_id", user.id);
+  if (error) return { error: friendly(error) };
   revalidatePath("/map");
   revalidatePath("/walk/new");
+  return {};
 }
 
-export async function deletePark(parkId: string) {
+export async function deletePark(parkId: string): Promise<{ error?: string }> {
   const { supabase, user } = await requireRole("walker", "operator");
-  await supabase.from("trails").delete().eq("id", parkId).eq("walker_id", user.id);
+  const { error } = await supabase.from("trails").delete().eq("id", parkId).eq("walker_id", user.id);
+  if (error) return { error: friendly(error, "Couldn't remove it. Try again.") };
   revalidatePath("/map");
+  return {};
 }
 
 /** Address → a spot on the map, to add a park there. */

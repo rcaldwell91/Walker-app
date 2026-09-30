@@ -1,6 +1,7 @@
 import { Button, Card } from "@/components/ui";
 import { Stars } from "@/components/score-input";
 import { dismissApprovalAsk, setCoverageApproval } from "./coverage-actions";
+import { ActionButton } from "@/components/action-button";
 
 /** A row of client_squad_choices(): one of the client's walker's squad members. */
 export type SquadChoice = {
@@ -52,11 +53,9 @@ export function BackupWalkerList({ choices }: { choices: SquadChoice[] }) {
         <li key={`${c.client_id}-${c.coverage_walker_id}`}>
           <Card className="flex items-center justify-between gap-3" data-choice={c.handle} data-approved={c.approved ? "yes" : "no"}>
             <Face c={c} />
-            <form action={setCoverageApproval.bind(null, c.client_id, c.coverage_walker_id, !c.approved)}>
-              <Button type="submit" variant={c.approved ? "secondary" : "primary"} className="px-3 text-sm">
-                {c.approved ? "Revoke" : "Approve"}
-              </Button>
-            </form>
+            <ActionButton run={() => setCoverageApproval(c.client_id, c.coverage_walker_id, !c.approved)} variant={c.approved ? "secondary" : "primary"} className="min-h-11 w-24 px-3 text-sm" busyLabel="Saving…">
+              {c.approved ? "Revoke" : "Approve"}
+            </ActionButton>
           </Card>
         </li>
       ))}
@@ -80,11 +79,11 @@ export function ApprovalPrompt({ c, walkerName }: { c: SquadChoice; walkerName: 
             Not now
           </Button>
         </form>
-        <form action={setCoverageApproval.bind(null, c.client_id, c.coverage_walker_id, true)} className="flex-1">
-          <Button type="submit" className="w-full">
+        <span className="flex-1">
+          <ActionButton run={() => setCoverageApproval(c.client_id, c.coverage_walker_id, true)} className="w-full" busyLabel="Saving…">
             Approve
-          </Button>
-        </form>
+          </ActionButton>
+        </span>
       </div>
     </Card>
   );

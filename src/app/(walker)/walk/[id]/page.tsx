@@ -40,6 +40,7 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
     };
   });
 
+  const { data: me } = await supabase.from("walkers").select("eta_mph").eq("id", user.id).maybeSingle();
   return (
     <LiveWalk
       walk={{
@@ -50,6 +51,7 @@ export default async function WalkPage({ params }: { params: Promise<{ id: strin
         serviceName: service?.name ?? "Walk",
         trailName: trail?.name ?? null,
         pickupOrder: walk.pickup_order ?? [],
+        etaMph: me?.eta_mph ?? 25,
       }}
       initialLine={line}
       pets={pets}

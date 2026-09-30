@@ -76,7 +76,6 @@ export default async function StaySummaryPage({ params, searchParams }: { params
         </p>
       </Card>
 
-      <ErrorText>{error}</ErrorText>
       <div className="mt-3 flex flex-col gap-2">
         {stay.status === "booked" ? (
           <form action={endStay.bind(null, id)}>
@@ -97,6 +96,7 @@ export default async function StaySummaryPage({ params, searchParams }: { params
           </form>
         ) : null}
       </div>
+      <ErrorText>{error}</ErrorText>
 
       <SectionTitle>Every day</SectionTitle>
       {days.length ? <StayDiary days={days} pets={pets} /> : <p className="text-sm text-muted">No daily updates posted.</p>}

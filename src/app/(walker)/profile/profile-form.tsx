@@ -2,8 +2,9 @@
 
 import { useActionState } from "react";
 import { saveProfile } from "./actions";
-import { Button, Card, ErrorText, Field, Input, Select } from "@/components/ui";
+import { Button, Card, Field, Input, Select, FormStatus } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
+import { FormDraft } from "@/components/form-draft";
 
 const CADENCES = [7, 14, 30, 60, 90];
 
@@ -25,6 +26,7 @@ export function ProfileForm({
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      <FormDraft id="profile" done={state?.saved} />
       <Field label="Your name">
         <Input name="full_name" defaultValue={initial.full_name} required autoComplete="name" />
       </Field>
@@ -61,11 +63,10 @@ export function ProfileForm({
         </Card>
       </div>
 
-      <ErrorText>{state?.error}</ErrorText>
-      {state?.saved ? <p className="text-sm text-accent" role="status">Saved.</p> : null}
       <Button type="submit" disabled={pending} className="h-14 text-lg">
         {pending ? "Saving…" : "Save profile"}
       </Button>
+      <FormStatus error={state?.error} ok={state?.saved && "Saved."} />
     </form>
   );
 }

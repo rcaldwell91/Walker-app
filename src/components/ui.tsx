@@ -138,3 +138,15 @@ export function Badge({ children, tone = "accent" }: { children: ReactNode; tone
   const tones = { accent: "bg-accent text-accent-fg", warn: "bg-warn text-warn-fg", muted: "bg-border text-fg" };
   return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
 }
+
+/**
+ * The one line under a form's button: what went wrong, or that it worked.
+ * Its space is always there, so nothing moves when it appears.
+ */
+export function FormStatus({ error, ok }: { error?: string | null; ok?: string | null | false | 0 }) {
+  return (
+    <p className={`min-h-5 text-sm ${error ? "text-warn" : "text-accent"}`} role="status">
+      {error || ok || ""}
+    </p>
+  );
+}

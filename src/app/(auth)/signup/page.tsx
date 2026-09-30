@@ -29,10 +29,10 @@ export default function SignupPage() {
         <Field label="Password" hint="At least 8 characters.">
           <Input name="password" type="password" autoComplete="new-password" minLength={8} required />
         </Field>
-        <ErrorText>{state?.error}</ErrorText>
         <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create account"}
         </Button>
+        <ErrorText>{state?.error}</ErrorText>
       </form>
       <p className="mt-6 text-sm text-muted">
         Already have one?{" "}

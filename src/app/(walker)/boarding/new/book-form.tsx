@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { bookStay } from "../actions";
-import { Button, Card, ErrorText, Field, Input, Select } from "@/components/ui";
+import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { dayDiff, stayPrice } from "@/lib/boarding";
 import { cents } from "@/lib/format";
@@ -17,7 +17,11 @@ export function BookStayForm({
   endDay,
   nightCents,
   extraCents,
+  dropoffTime,
+  pickupTime,
 }: {
+  dropoffTime: string;
+  pickupTime: string;
   clients: Client[];
   initialClient: string;
   initialPet: string;
@@ -27,6 +31,9 @@ export function BookStayForm({
   extraCents: number | null;
 }) {
   const [state, action, pending] = useActionState(bookStay, undefined);
+  // A warning is about what was on screen when it was checked: any change takes it away.
+  const [warn, setWarn] = useState(false);
+  useEffect(() => setWarn(!!state?.warning), [state]);
   const [clientId, setClientId] = useState(initialClient);
   const client = clients.find((c) => c.id === clientId);
   const [pets, setPets] = useState<string[]>(() => {
@@ -37,8 +44,8 @@ export function BookStayForm({
   });
   const [start, setStart] = useState(startDay);
   const [end, setEnd] = useState(endDay);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
+  const [startTime, setStartTime] = useState(dropoffTime);
+  const [endTime, setEndTime] = useState(pickupTime);
   const [notes, setNotes] = useState("");
   // Controlled fields: a "Book anyway" warning mustn't wipe what was typed.
   const [price, setPrice] = useState<string | null>(null); // null = use the rates
@@ -47,7 +54,7 @@ export function BookStayForm({
   const shownPrice = price ?? (nightCents != null && pets.length && nights ? (computed / 100).toFixed(2).replace(/\.00$/, "") : "");
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} className="flex flex-col gap-4" onChange={() => setWarn(false)}>
       <Card className="flex flex-col gap-4">
         <Field label="Client">
           <Select
@@ -152,18 +159,19 @@ export function BookStayForm({
         <VoiceInput name="notes" value={notes} onValueChange={setNotes} rows={2} placeholder="e.g. Bringing own bed" />
       </Field>
 
-      <ErrorText>{state?.error}</ErrorText>
-      {state?.warning ? (
-        <Card className="flex flex-col gap-3 border-warn" data-capacity-warning>
-          <p className="text-sm font-medium text-warn">{state.warning}</p>
-          <Button type="submit" name="force" value="1" variant="danger" disabled={pending} data-book-anyway>
-            {pending ? "Booking…" : "Book anyway"}
-          </Button>
-        </Card>
-      ) : null}
-      <Button type="submit" disabled={pending} className="h-14 text-lg" data-book>
-        {pending ? "Booking…" : "Book stay"}
-      </Button>
+      {/* Over capacity or away: the same button turns into "Book anyway", right where the thumb is. */}
+      {warn ? (
+        <Button type="submit" name="force" value="1" variant="danger" disabled={pending} className="h-14 text-lg" data-book-anyway>
+          {pending ? "Booking…" : "Book anyway"}
+        </Button>
+      ) : (
+        <Button type="submit" disabled={pending} className="h-14 text-lg" data-book>
+          {pending ? "Booking…" : "Book stay"}
+        </Button>
+      )}
+      <p className={`min-h-10 text-sm ${state?.error || warn ? "text-warn" : "text-muted"}`} role="status" data-capacity-warning={warn ? "" : undefined}>
+        {state?.error ?? (warn ? state?.warning : "")}
+      </p>
     </form>
   );
 }

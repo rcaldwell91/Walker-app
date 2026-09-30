@@ -44,7 +44,6 @@ export default async function TodayPage() {
         Hey {firstName(profile?.full_name || "there")}
       </PageTitle>
 
-      <NotificationsInbox supabase={supabase} tz={tz} />
 
       {incoming.map((r) => (
         <IncomingCoverCard key={r.id} r={r} tz={tz} />
@@ -62,6 +61,9 @@ export default async function TodayPage() {
           Start a walk
         </LinkButton>
       )}
+
+      {/* Below the main button, so clearing it never moves "Start a walk". */}
+      <NotificationsInbox supabase={supabase} tz={tz} here="/home" />
 
       {boarders?.length ? (
         <Card className="mb-4 flex flex-col gap-2" data-boarding-today>

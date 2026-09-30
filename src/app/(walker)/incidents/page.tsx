@@ -12,11 +12,12 @@ const SEVERITY = {
 } as const;
 
 export default async function IncidentsPage() {
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const { data: incidents } = await supabase
     .from("incidents")
     .select("id, severity, what_happened, action_taken, occurred_at, client_notified_at, walk_id, dog:dogs(id, name, client:clients(name))")
+    .eq("walker_id", user.id) // yours only (RLS also returns covered walks' rows)
     .order("occurred_at", { ascending: false })
     .limit(200);
 

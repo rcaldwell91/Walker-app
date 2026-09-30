@@ -9,11 +9,13 @@ import { StayDiary, loadDiary } from "@/components/stay-diary";
 import { cents, fmtDate, fmtTime } from "@/lib/format";
 import { dateKey } from "@/lib/time";
 import type { PetBoarding } from "@/lib/boarding";
+import { readNotificationsFor } from "@/lib/notify";
 
 /** A stay, for the owner: the details, the walker's space, and the daily diary, newest first. */
 export default async function MyStayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireRole("client");
+  await readNotificationsFor(supabase, `/my/stays/${id}`);
   const tz = await getTimeZone();
   const { data: stay } = await supabase
     .from("boarding_stays")

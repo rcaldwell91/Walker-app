@@ -70,7 +70,7 @@ export default async function ClientHome() {
         </Card>
       ) : null}
 
-      <NotificationsInbox supabase={supabase} tz={tz} />
+      <NotificationsInbox supabase={supabase} tz={tz} here="/my" />
 
       {asks.map((c) => (
         <ApprovalPrompt key={`${c.client_id}-${c.coverage_walker_id}`} c={c} walkerName={walkerNameFor(c.client_id)} />

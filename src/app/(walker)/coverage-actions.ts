@@ -9,6 +9,7 @@ import { isSeriesDay, occurrencesBetween, type BookingException } from "@/lib/sc
 import { clientProfileId, notify } from "@/lib/notify";
 import { fmtDate, fmtTime } from "@/lib/format";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { friendly } from "@/lib/errors";
 
 type CoverRow = { id: string; from_walker_id: string; to_walker_id: string; client_id: string; client_name: string; dog_names: string | null; starts_at: string; from_name: string; to_name: string; status: string };
 async function coverRow(supabase: SupabaseClient, id: string) {
@@ -73,7 +74,7 @@ export async function requestCoverage(bookingId: string, day: string, _: CoverSt
     tz,
     message,
   });
-  if (error) return { error: /row-level security/i.test(error.message) ? "The client hasn't approved that walker yet" : error.message };
+  if (error) return { error: /row-level security/i.test(error.message) ? "The client hasn't approved that walker yet" : friendly(error) };
   const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   await notify([toWalker], {
     kind: "coverage",
@@ -111,7 +112,7 @@ export async function respondToCoverage(requestId: string, accept: boolean) {
   }
   refresh();
   revalidatePath(`/cover/${requestId}`);
-  if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(friendly(error, "Couldn't do that. Try again."))}`);
 }
 
 /** Either walker can cancel an open or accepted cover. The day goes back to needing coverage. */
@@ -132,5 +133,5 @@ export async function cancelCoverage(requestId: string) {
   }
   refresh();
   revalidatePath(`/cover/${requestId}`);
-  if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/cover/${requestId}?error=${encodeURIComponent(friendly(error, "Couldn't do that. Try again."))}`);
 }

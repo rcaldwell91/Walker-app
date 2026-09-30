@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { errorOf, tap } from "@/lib/offline";
 import { MapView, type MapPin } from "@/components/map-view";
-import { Button, Card, ErrorText, Field, Input, LinkButton, SectionTitle } from "@/components/ui";
+import { Button, Card, Field, Input, LinkButton, SectionTitle } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { ParkPicker, featureText } from "@/components/park-picker";
 import { hasCoords, nearestNeighborOrder, type LatLng } from "@/lib/geo/distance";
@@ -123,10 +124,10 @@ export function MapScreen({ clients, parks }: { clients: Client[]; parks: MapPar
       />
       <p className="flex flex-wrap gap-4 text-xs text-muted">
         <span className="flex items-center gap-1">
-          <span className="inline-block h-3 w-3 rounded-full bg-accent" /> Clients
+          <span className="inline-block h-3 w-3 rounded-full" style={{ background: "conic-gradient(#e0823d 0 33%, #3b82c4 0 66%, #9b59b6 0)" }} /> Clients, in their colours
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rotate-45 bg-[#5b4636]" /> Parks & trails
+          <span className="inline-block h-2.5 w-2.5 rotate-45 border border-white bg-[#5b4636] outline outline-1 outline-black/40" /> Parks & trails
         </span>
         <span>Tap the map to add a park.</span>
       </p>
@@ -276,7 +277,6 @@ function AddParkForm({ at, onDone }: { at: LatLng; onDone: (savedId?: string) =>
         <Field label="Notes" hint="Optional. Rules, the best entrance, hazards.">
           <VoiceInput name="notes" rows={2} />
         </Field>
-        <ErrorText>{state?.error}</ErrorText>
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="secondary" onClick={() => onDone()}>
             Never mind
@@ -285,6 +285,9 @@ function AddParkForm({ at, onDone }: { at: LatLng; onDone: (savedId?: string) =>
             {pending ? "Saving…" : "Save park"}
           </Button>
         </div>
+        <p className="min-h-5 text-sm text-warn" role="status">
+          {state?.error}
+        </p>
       </form>
     </Card>
   );
@@ -293,12 +296,13 @@ function AddParkForm({ at, onDone }: { at: LatLng; onDone: (savedId?: string) =>
 function ParkCard({ park, planned, onPlan, onGone }: { park: MapPark; planned: boolean; onPlan: () => void; onGone: () => void }) {
   const [features, setFeatures] = useState(park.features);
   const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
   useEffect(() => setFeatures(park.features), [park.features]);
   return (
     <Card className="flex flex-col gap-3" data-park-card={park.name}>
       <div>
         <p className="flex items-center gap-2 font-medium">
-          <span className="inline-block h-2.5 w-2.5 rotate-45 bg-[#5b4636]" />
+          <span className="inline-block h-2.5 w-2.5 rotate-45 border border-white bg-[#5b4636] outline outline-1 outline-black/40" />
           {park.name}
         </p>
         {park.address ? <p className="text-sm text-muted">{park.address}</p> : null}
@@ -308,9 +312,14 @@ function ParkCard({ park, planned, onPlan, onGone }: { park: MapPark; planned: b
         <FeatureChips
           value={features}
           onToggle={(k) => {
+            const before = features;
             const next = features.includes(k) ? features.filter((x) => x !== k) : [...features, k];
             setFeatures(next);
-            start(() => setParkFeatures(park.id, next));
+            start(async () => {
+              const e = errorOf(await tap(() => setParkFeatures(park.id, next)));
+              setErr(e);
+              if (e) setFeatures(before); // didn't save: show what's really stored
+            });
           }}
         />
       ) : features.length ? (
@@ -326,8 +335,9 @@ function ParkCard({ park, planned, onPlan, onGone }: { park: MapPark; planned: b
             disabled={pending}
             onClick={() =>
               start(async () => {
-                await deletePark(park.id);
-                onGone();
+                const e = errorOf(await tap(() => deletePark(park.id)));
+                setErr(e);
+                if (!e) onGone();
               })
             }
           >
@@ -335,6 +345,9 @@ function ParkCard({ park, planned, onPlan, onGone }: { park: MapPark; planned: b
           </Button>
         ) : null}
       </div>
+      <p className="min-h-5 text-sm text-warn" role="status">
+        {err}
+      </p>
     </Card>
   );
 }
@@ -362,11 +375,12 @@ function AddressSearch({ onFound }: { onFound: (at: LatLng) => void }) {
         }}
       >
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search an address or park name" aria-label="Search an address" />
-        <ErrorText>{msg}</ErrorText>
         <Button type="submit" variant="secondary" disabled={pending || !q.trim()}>
           {pending ? "Finding…" : "Find it"}
         </Button>
-        <p className="text-xs text-muted">Or tap the map where the park is.</p>
+        <p className={`min-h-5 text-xs ${msg ? "text-warn" : "text-muted"}`} role="status">
+          {msg ?? "Or tap the map where the park is."}
+        </p>
       </form>
     </Card>
   );

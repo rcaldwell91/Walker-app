@@ -17,10 +17,10 @@ export function TimeOffForm({ today }: { today: string }) {
         </Field>
       </div>
       <Input name="note" placeholder="Note (optional), e.g. Family trip" maxLength={200} aria-label="Note" />
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? "Saving…" : "Add time off"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

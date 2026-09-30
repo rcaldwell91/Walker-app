@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Card, Field, Input, Textarea } from "@/components/ui";
+import { Card, Field, Input } from "@/components/ui";
+import { VoiceInput } from "@/components/voice-input";
 import { PET_BOARDING_FIELDS, type PetBoarding } from "@/lib/boarding";
 
 /**
@@ -14,7 +15,7 @@ export function BoardingPetFields({ pet, boarding, nameFor }: { pet: string; boa
       {PET_BOARDING_FIELDS.map((f) => (
         <Field key={f.key} label={f.label}>
           {"long" in f && f.long ? (
-            <Textarea name={nameFor(f.key)} defaultValue={boarding[f.key] ?? ""} placeholder={f.placeholder} data-b={f.key} />
+            <VoiceInput name={nameFor(f.key)} defaultValue={boarding[f.key] ?? ""} placeholder={f.placeholder} rows={2} aria-label={f.label} />
           ) : (
             <Input name={nameFor(f.key)} defaultValue={boarding[f.key] ?? ""} placeholder={f.placeholder} data-b={f.key} />
           )}
@@ -40,7 +41,7 @@ export function BoardingClientFields({ emergency, bringing, emergencyName = "eme
         </Field>
       ) : null}
       <Field label="What they're bringing">
-        <Textarea name="boarding_bringing" defaultValue={bringing ?? ""} placeholder="e.g. food for 3 days, bed, blue leash, meds in a zip bag" data-b="bringing" />
+        <VoiceInput name="boarding_bringing" defaultValue={bringing ?? ""} placeholder="e.g. food for 3 days, bed, blue leash, meds in a zip bag" rows={2} aria-label="What they're bringing" />
       </Field>
     </>
   );

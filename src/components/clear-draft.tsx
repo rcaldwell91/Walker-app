@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 
-/** Once a walk is finished, its wrap-up draft on this phone is done with. */
-export function ClearDraft({ storageKey }: { storageKey: string }) {
+/** Once something is sent, its drafts on this phone are done with. */
+export function ClearDraft({ storageKeys }: { storageKeys: string[] }) {
+  const key = storageKeys.join("|");
   useEffect(() => {
     try {
-      localStorage.removeItem(storageKey);
+      for (const k of key.split("|")) localStorage.removeItem(k);
     } catch {}
-  }, [storageKey]);
+  }, [key]);
   return null;
 }

@@ -28,7 +28,7 @@ export default function Home() {
         </Link>
       </div>
       <p className="text-sm text-muted">
-        Dog owner? Your walker will send you a link to join.
+        Pet owner? Your walker will send you a link to join.
       </p>
     </main>
   );

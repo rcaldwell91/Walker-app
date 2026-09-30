@@ -11,6 +11,7 @@ import { clientProfileId, notify } from "@/lib/notify";
 import { PET_BOARDING_FIELDS, STAY_BUTTONS, dayDiff, occupancy, stayPrice } from "@/lib/boarding";
 import { PET_SCORES } from "@/lib/pet-scores";
 import { askForFill, type VoiceResult } from "@/lib/voice-fill";
+import { friendly } from "@/lib/errors";
 
 export type BoardingState = { error?: string; saved?: number } | undefined;
 export type BookState = { error?: string; warning?: string } | undefined;
@@ -29,7 +30,7 @@ export async function setCapacity(_: BoardingState, form: FormData): Promise<Boa
   if (!Number.isInteger(n) || n < 0 || n > 100) return { error: "Enter a number of pets, like 3" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { error } = await supabase.from("walkers").update({ boarding_capacity: n }).eq("id", user.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath("/boarding");
   return { saved: Date.now() };
 }
@@ -44,7 +45,7 @@ export async function saveBoardingRates(_: BoardingState, form: FormData): Promi
     .from("walkers")
     .update({ boarding_night_cents: night, boarding_extra_pet_cents: extra })
     .eq("id", user.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath("/money/rates");
   revalidatePath("/boarding");
   return { saved: Date.now() };
@@ -61,8 +62,8 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   const petIds = form.getAll("pet").map(String).filter(Boolean);
   const startDay = String(form.get("start_day") ?? "");
   const endDay = String(form.get("end_day") ?? "");
-  const startTime = String(form.get("start_time") ?? "") || "09:00";
-  const endTime = String(form.get("end_time") ?? "") || "17:00";
+  const startTime = String(form.get("start_time") ?? "");
+  const endTime = String(form.get("end_time") ?? "");
   const notes = String(form.get("notes") ?? "").trim().slice(0, 1000) || null;
   const force = form.get("force") === "1";
   if (!clientId) return { error: "Pick the client" };
@@ -110,11 +111,11 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
       warnings.push(
         cap
           ? `Over capacity: ${worst.n} pets on the night of ${fmtDateKey(worst.day)}, and you take ${cap}.`
-          : "You haven't set how many pets you can take (Boarding page).",
+          : "You haven't set how many pets you can take.",
       );
     }
     if (away?.length) warnings.push(`You're away ${fmtDateKey(away[0].starts_on)}${away[0].ends_on !== away[0].starts_on ? `–${fmtDateKey(away[0].ends_on)}` : ""}.`);
-    if (warnings.length) return { warning: warnings.join(" ") };
+    if (warnings.length) return { warning: warnings[0] }; // the strongest one only
   }
 
   const nightCents = me?.boarding_night_cents ?? 0;
@@ -146,7 +147,7 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   const { error: petErr } = await supabase.from("stay_pets").insert(pets.map((p) => ({ stay_id: stay.id, dog_id: p.id })));
   if (petErr) {
     await supabase.from("boarding_stays").delete().eq("id", stay.id);
-    return { error: petErr.message };
+    return { error: friendly(petErr) };
   }
 
   const names = pets.map((p) => p.name).join(" & ");
@@ -160,9 +161,10 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   redirect(`/boarding/${stay.id}`);
 }
 
-export async function cancelStay(stayId: string) {
+export async function cancelStay(stayId: string): Promise<{ error?: string }> {
   const { supabase, user } = await requireRole("walker", "operator");
-  await supabase.from("boarding_stays").update({ status: "cancelled" }).eq("id", stayId).eq("walker_id", user.id).eq("status", "booked");
+  const { error } = await supabase.from("boarding_stays").update({ status: "cancelled" }).eq("id", stayId).eq("walker_id", user.id).eq("status", "booked");
+  if (error) return { error: friendly(error, "Couldn't cancel it. Try again.") };
   revalidatePath("/boarding");
   redirect("/boarding");
 }
@@ -189,7 +191,7 @@ export async function saveStayIntake(stayId: string, _: BoardingState, form: For
     }
     boarding.vet_release = form.get(`b[${sp.dog_id}][vet_release]`) === "on";
     const { error } = await supabase.from("dogs").update({ boarding }).eq("id", sp.dog_id).eq("walker_id", user.id);
-    if (error) return { error: error.message };
+    if (error) return { error: friendly(error) };
   }
   const { error } = await supabase
     .from("clients")
@@ -199,7 +201,7 @@ export async function saveStayIntake(stayId: string, _: BoardingState, form: For
     })
     .eq("id", stay.client_id)
     .eq("walker_id", user.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   revalidatePath(`/boarding/${stayId}`);
   return { saved: Date.now() };
 }
@@ -251,7 +253,7 @@ export async function postStayUpdate(updateId: string, payload: StayUpdatePayloa
     p_tags: tags,
     p_note: u.note,
   });
-  if (error) return { error: `Couldn't send the update: ${error.message}` };
+  if (error) return { error: friendly(error, "Couldn't post the update. Try again.") };
   if (postedAt) {
     // First post of the day (an edit doesn't ping the owner again).
     const names = (stay.stay_pets ?? [])
@@ -290,7 +292,7 @@ export async function interpretStayUpdate(updateId: string, transcript: string):
 export async function endStay(stayId: string) {
   const { supabase } = await requireRole("walker", "operator");
   const { error } = await supabase.rpc("end_stay", { p_stay: stayId });
-  if (error) redirect(`/boarding/${stayId}/summary?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/boarding/${stayId}/summary?error=${encodeURIComponent(friendly(error, "Couldn't do that. Try again."))}`);
   revalidatePath("/boarding");
   revalidatePath(`/boarding/${stayId}`);
   redirect(`/boarding/${stayId}/summary`);
@@ -303,7 +305,7 @@ export async function billStay(stayId: string) {
   if (!stay) redirect("/boarding");
   if (stay.status !== "done") {
     const { error } = await supabase.rpc("end_stay", { p_stay: stayId });
-    if (error) redirect(`/boarding/${stayId}/summary?error=${encodeURIComponent(error.message)}`);
+    if (error) redirect(`/boarding/${stayId}/summary?error=${encodeURIComponent(friendly(error, "Couldn't do that. Try again."))}`);
   }
   // Already on an invoice? Go there.
   const { data: line } = await supabase.from("invoice_lines").select("invoice_id").eq("stay_id", stayId).not("invoice_id", "is", null).limit(1).maybeSingle();

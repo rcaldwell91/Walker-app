@@ -32,6 +32,7 @@ export default async function WrapUpPage({ params }: { params: Promise<{ id: str
   const urlFor = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
   const droppedOff = new Set((walk.messages ?? []).filter((m) => m.kind === "dropped_off").map((m) => m.client_id));
 
+  const { data: me } = await supabase.from("walkers").select("untagged_photos_to_all").eq("id", user.id).maybeSingle();
   return (
     <WrapUp
       walkId={walk.id}
@@ -43,6 +44,7 @@ export default async function WrapUpPage({ params }: { params: Promise<{ id: str
       photos={(walk.photos ?? []).map((p) => ({ id: p.id, url: urlFor.get(p.storage_path) ?? "", tags: (p.photo_pets ?? []).map((t) => t.dog_id) }))}
       notes={(walk.walk_events ?? []).filter((e) => e.kind === "note" && e.note).map((e) => ({ id: e.id, note: e.note!, at: e.at }))}
       voiceReady={!!process.env.ANTHROPIC_API_KEY}
+      untaggedToAll={me?.untagged_photos_to_all ?? true}
     />
   );
 }

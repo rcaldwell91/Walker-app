@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Badge, Button, Card } from "@/components/ui";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { stash } from "@/lib/offline";
+import { Button, Card } from "@/components/ui";
 import { useSpeechToText } from "@/components/voice-input";
 import { EVENT_EMOJI, EVENT_LABELS } from "@/lib/events";
 import { PET_SCORES } from "@/lib/pet-scores";
@@ -33,11 +34,11 @@ export function LogGrid({
       {buttons.map((b) => {
         const n = counts[b] ?? 0;
         return (
-          <div key={b} className="relative">
+          <div key={b} className="flex flex-col gap-1">
             <button
               type="button"
               onClick={() => onChange(b, Math.min(20, n + 1))}
-              className={`flex h-20 w-full flex-col items-center justify-center rounded-2xl border-2 text-sm font-medium active:scale-95 ${
+              className={`flex h-20 w-full flex-col items-center justify-center rounded-2xl border-2 px-1 text-sm font-medium leading-tight active:scale-95 ${
                 n ? "border-accent bg-accent/10" : "border-border bg-bg"
               } ${filled(b) ? voiceRing : ""}`}
               data-log={b}
@@ -46,19 +47,21 @@ export function LogGrid({
               <span className="text-2xl" aria-hidden="true">
                 {EVENT_EMOJI[b] ?? "•"}
               </span>
-              {EVENT_LABELS[b] ?? b}
-              {n > 1 ? ` ×${n}` : ""}
+              <span className="line-clamp-1">{EVENT_LABELS[b] ?? b}</span>
+              {/* The count has its own line, so nothing moves when it appears. */}
+              <span className="h-4 text-xs tabular-nums">{n ? `×${n}` : ""}</span>
             </button>
-            {n ? (
-              <button
-                type="button"
-                aria-label={`${pet}: one less ${EVENT_LABELS[b] ?? b}`}
-                onClick={() => onChange(b, Math.max(0, n - 1))}
-                className="absolute -right-1 -top-1 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-lg shadow-card"
-              >
-                −
-              </button>
-            ) : null}
+            {/* "−" sits in its own slot under the button, never over it, and the slot is always there. */}
+            <button
+              type="button"
+              aria-label={`${pet}: one less ${EVENT_LABELS[b] ?? b}`}
+              onClick={() => onChange(b, Math.max(0, n - 1))}
+              disabled={!n}
+              className={`h-9 rounded-xl border border-border text-lg leading-none ${n ? "bg-card" : "invisible"}`}
+              data-minus={b}
+            >
+              −
+            </button>
           </div>
         );
       })}
@@ -120,9 +123,11 @@ export function PhotoGallery({
   tags,
   onToggleTag,
   onFiles,
+  onRetry,
   groupHint,
 }: {
   photos: GalleryPhoto[];
+  onRetry: (photoId: string) => void;
   pets: { id: string; name: string }[];
   tags: Record<string, string[]>;
   onToggleTag: (photoId: string, petId: string) => void;
@@ -142,9 +147,13 @@ export function PhotoGallery({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={ph.url} alt="" className="h-full w-full object-cover" />
                   ) : null}
-                  {ph.status !== "done" ? (
+                  {ph.status === "error" ? (
+                    <button type="button" onClick={() => onRetry(ph.id)} className="absolute inset-x-0 bottom-0 min-h-11 bg-black/70 px-1 text-center text-xs font-medium text-white" data-retry-photo>
+                      Didn&apos;t send. Tap to try again
+                    </button>
+                  ) : ph.status !== "done" ? (
                     <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-1 text-center text-xs text-white">
-                      {ph.status === "uploading" ? "Sending…" : ph.status === "queued" ? "Will send when online" : "Didn't send"}
+                      {ph.status === "uploading" ? "Sending…" : "Sends when you have signal"}
                     </span>
                   ) : null}
                 </div>
@@ -215,7 +224,10 @@ export function TalkItThrough({
   emptyPrompt,
   fillLabel,
   onFill,
+  draftKey,
 }: {
+  /** Keeps what was said on the phone until the report is sent. */
+  draftKey: string;
   ready: boolean;
   interpret: (text: string) => Promise<VoiceResult>;
   example: string;
@@ -223,7 +235,17 @@ export function TalkItThrough({
   fillLabel: string;
   onFill: (f: VoiceFill) => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setTextState] = useState("");
+  const setText = (v: string | ((cur: string) => string)) =>
+    setTextState((cur) => {
+      const next = typeof v === "function" ? v(cur) : v;
+      stash.set(draftKey, next);
+      return next;
+    });
+  useEffect(() => {
+    const saved = stash.get<string>(draftKey, "");
+    if (saved) setTextState(saved);
+  }, [draftKey]);
   const [msg, setMsg] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(!ready);
   const [pending, start] = useTransition();
@@ -233,14 +255,9 @@ export function TalkItThrough({
 
   if (needsSetup) {
     return (
-      <Card className="flex flex-col gap-2" data-voice="needs-setup">
-        <button type="button" disabled className="btn flex h-16 w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg text-lg font-medium opacity-60">
-          🎙️ Talk it through
-        </button>
-        <p className="flex items-center gap-2 text-sm text-muted">
-          <Badge tone="muted">Needs setup</Badge> Voice fill isn&apos;t switched on yet. Use the buttons below.
-        </p>
-      </Card>
+      <button type="button" disabled className="btn flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border text-base text-muted" data-voice="needs-setup">
+        🎙️ Talk it through · Needs setup
+      </button>
     );
   }
 
@@ -271,7 +288,7 @@ export function TalkItThrough({
         onClick={speech.listening ? speech.stop : speech.start}
         disabled={!speech.supported || pending}
         className={`btn flex h-16 w-full items-center justify-center gap-2 rounded-xl text-lg font-medium ${
-          speech.listening ? "animate-pulse bg-warn text-warn-fg" : "bg-accent text-accent-fg"
+          speech.listening ? "animate-pulse bg-voice text-bg" : "bg-accent text-accent-fg"
         }`}
       >
         🎙️ {speech.listening ? "Listening… tap to stop" : "Talk it through"}

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { clientProfileId, notify } from "@/lib/notify";
+import { friendly } from "@/lib/errors";
 
 export type MessageState = { error?: string; sentAt?: number } | undefined;
 
@@ -18,7 +19,7 @@ export async function sendMessage(clientId: string, _: MessageState, form: FormD
     kind: "custom",
     body,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error, "Couldn't send. Try again.") };
   const { data: me } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   await notify([await clientProfileId(clientId)], {
     kind: "message",

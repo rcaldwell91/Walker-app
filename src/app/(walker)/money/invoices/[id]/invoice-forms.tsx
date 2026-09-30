@@ -35,7 +35,7 @@ export function LineRow({ invoiceId, line, editable }: { invoiceId: string; line
         <span className="block text-xs text-muted">{line.date}</span>
       </span>
       <span className="flex items-center gap-2">
-        <span className={line.amount < 0 ? "text-accent" : ""}>{line.amount < 0 ? `−${cents(-line.amount)}` : cents(line.amount)}</span>
+        <span>{line.amount < 0 ? `−${cents(-line.amount)}` : cents(line.amount)}</span>
         {editable ? (
           <>
             <button type="button" className="text-xs text-accent underline" onClick={() => setEditing(true)} data-edit-line>
@@ -70,16 +70,16 @@ export function AddLineForm({ invoiceId, today }: { invoiceId: string; today: st
         <Field label="Date">
           <Input name="occurred_on" type="date" defaultValue={today} />
         </Field>
-        <ErrorText>{state?.error}</ErrorText>
         <Button type="submit" variant="secondary" disabled={pending}>
           {pending ? "Adding…" : "Add line"}
         </Button>
+        <ErrorText>{state?.error}</ErrorText>
       </form>
     </Card>
   );
 }
 
-export function PaymentForm({ invoiceId, today, balance }: { invoiceId: string; today: string; balance: number }) {
+export function PaymentForm({ invoiceId, today, balance, methods }: { invoiceId: string; today: string; balance: number; methods: string[] }) {
   const [state, action, pending] = useActionState(recordPayment.bind(null, invoiceId), undefined);
   return (
     <Card>
@@ -91,7 +91,9 @@ export function PaymentForm({ invoiceId, today, balance }: { invoiceId: string; 
         <fieldset>
           <legend className="mb-1 text-sm font-medium">How</legend>
           <div className="flex flex-wrap gap-2">
-            {Object.entries(METHOD_LABEL).map(([value, label], i) => (
+            {Object.entries(METHOD_LABEL)
+              .filter(([value]) => methods.includes(value) || value === "other")
+              .map(([value, label], i) => (
               <label key={value} className="cursor-pointer">
                 <input type="radio" name="method" value={value} defaultChecked={i === 0} className="peer sr-only" />
                 <span className="inline-block rounded-xl border border-border px-4 py-2 peer-checked:border-accent peer-checked:bg-accent peer-checked:text-accent-fg">
@@ -105,10 +107,10 @@ export function PaymentForm({ invoiceId, today, balance }: { invoiceId: string; 
           <Input name="received_on" type="date" defaultValue={today} />
         </Field>
         <Input name="note" placeholder="Note (optional)" maxLength={200} aria-label="Note" />
-        <ErrorText>{state?.error}</ErrorText>
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Mark received"}
         </Button>
+        <ErrorText>{state?.error}</ErrorText>
       </form>
     </Card>
   );

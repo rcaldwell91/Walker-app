@@ -29,9 +29,9 @@ export function miles(meters: number) {
   return meters / METERS_PER_MILE;
 }
 
-/** Minutes to drive `meters` at DRIVE_MPH, rounded up. Never less than 1. */
-export function etaMinutes(meters: number) {
-  return Math.max(1, Math.ceil((miles(meters) / DRIVE_MPH) * 60));
+/** Minutes to drive `meters` at the walker's average speed (a setting, 25 mph unless changed), rounded up. Never less than 1. */
+export function etaMinutes(meters: number, mph: number = DRIVE_MPH) {
+  return Math.max(1, Math.ceil((miles(meters) / (mph > 0 ? mph : DRIVE_MPH)) * 60));
 }
 
 /** Total length of a GPS line in meters. */

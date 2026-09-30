@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { requestCoverage } from "../../coverage-actions";
-import { Button, ErrorText, Field, Input } from "@/components/ui";
+import { Button, Field, Input, FormStatus } from "@/components/ui";
 
 type Member = { walker_id: string; full_name: string; handle: string; approved: boolean };
 
@@ -71,11 +71,10 @@ export function CoverRequestForm({
       <Field label="Note (optional)">
         <Input name="message" maxLength={500} placeholder="e.g. Rex pulls toward squirrels" />
       </Field>
-      <ErrorText>{state?.error}</ErrorText>
-      {state?.done ? <p className="text-sm text-accent" role="status">Sent. You&apos;ll see here when they answer.</p> : null}
       <Button type="submit" disabled={pending || !pick}>
         {pending ? "Sending…" : "Need coverage"}
       </Button>
+      <FormStatus error={state?.error} ok={state?.done && "Asked. Their answer shows here."} />
     </form>
   );
 }

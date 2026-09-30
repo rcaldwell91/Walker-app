@@ -5,9 +5,12 @@
  * then sends a push to each of their devices unless they turned that kind off.
  * Uses the service role: the sender can't read the recipient's subscriptions.
  * Sending never throws; a failed push never blocks the action that caused it.
+ * It runs after the response (next/server after()), so nobody waits on a phone
+ * being reached before their screen moves on.
  */
 
 import webpush from "web-push";
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 import type { PushKind } from "./push-kinds";
@@ -27,8 +30,18 @@ function vapidReady() {
 
 export type NotifyResult = { notified: number; pushed: number; failed: number };
 
-export async function notify(userIds: (string | null | undefined)[], n: Notice): Promise<NotifyResult> {
+export async function notify(userIds: (string | null | undefined)[], n: Notice): Promise<void> {
   const ids = Array.from(new Set(userIds.filter((x): x is string => !!x)));
+  if (!ids.length) return;
+  try {
+    after(() => deliver(ids, n));
+  } catch {
+    // Outside a request (scripts): send now.
+    await deliver(ids, n);
+  }
+}
+
+async function deliver(ids: string[], n: Notice): Promise<NotifyResult> {
   const result: NotifyResult = { notified: 0, pushed: 0, failed: 0 };
   if (!ids.length) return result;
   try {
@@ -117,4 +130,9 @@ export async function notifyOpenedCheckIns(rows: { id: string; client_id: string
       url: "/my",
     });
   }
+}
+
+/** Opening a page counts as reading the notifications that point at it. */
+export async function readNotificationsFor(supabase: import("@supabase/supabase-js").SupabaseClient, url: string) {
+  await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("url", url).is("read_at", null);
 }

@@ -66,7 +66,7 @@ const icons = {
 };
 
 // The walker's More groups live under these paths, so "More" stays lit there.
-const MORE_PATHS = ["/more", "/money", "/hours", "/schedule", "/check-ins", "/squad", "/profile", "/coming-soon", "/billing", "/install", "/incidents", "/cover", "/boarding"];
+const MORE_PATHS = ["/more", "/money", "/hours", "/schedule", "/check-ins", "/squad", "/profile", "/coming-soon", "/billing", "/install", "/incidents", "/cover", "/boarding", "/settings"];
 
 const walkerTabs: Tab[] = [
   { href: "/home", label: "Today", icon: icons.today, match: (p) => p === "/home" || p.startsWith("/report") },
@@ -77,7 +77,7 @@ const walkerTabs: Tab[] = [
 ];
 
 const clientTabs: Tab[] = [
-  { href: "/my", label: "Home", icon: icons.home, match: (p) => p === "/my" || p.startsWith("/my/pets") },
+  { href: "/my", label: "Home", icon: icons.home, match: (p) => p === "/my" || p.startsWith("/my/pets") || p.startsWith("/my/stays") },
   { href: "/my/walks", label: "Walks", icon: icons.walk },
   { href: "/my/photos", label: "Photos", icon: icons.photos },
   { href: "/my/messages", label: "Messages", icon: icons.messages },

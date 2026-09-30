@@ -2,10 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { saveClientCoordinates } from "@/lib/geo/geocode";
 import { PET_BOARDING_FIELDS } from "@/lib/boarding";
+import { friendly } from "@/lib/errors";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -44,8 +46,9 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
     .update({ ...contact, boarding_bringing: boarding_bringing?.trim() || null, intake_completed_at: new Date().toISOString() })
     .eq("id", client_id)
     .eq("profile_id", user.id);
-  if (error) return { error: error.message };
-  await saveClientCoordinates(supabase, client_id, contact.address_line, contact.city);
+  if (error) return { error: friendly(error) };
+  // Finding the address on the map can take a few seconds: do it after the page moves on.
+  after(() => saveClientCoordinates(supabase, client_id, contact.address_line, contact.city));
 
   // Dogs come in as dog[0][name], dog[0][breed], ...
   const dogs: Record<string, Record<string, string>> = {};
@@ -71,16 +74,20 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
       birthdate: birthdate || null,
       boarding,
     };
-    if (id) await supabase.from("dogs").update(payload).eq("id", id);
-    else await supabase.from("dogs").insert({ ...payload, client_id, walker_id: clientRow!.walker_id });
+    const { error: petErr } = id
+      ? await supabase.from("dogs").update(payload).eq("id", id)
+      : await supabase.from("dogs").insert({ ...payload, client_id, walker_id: clientRow!.walker_id });
+    if (petErr) return { error: `Your details saved, but ${payload.name?.trim() || "a pet"} didn't. Tap Save again.` };
   }
 
   revalidatePath("/my");
   redirect("/my");
 }
 
-export async function markHomework(id: string, status: "in_progress" | "done", response?: string) {
+export async function markHomework(id: string, status: "in_progress" | "done", response?: string): Promise<{ error?: string }> {
   const { supabase } = await requireRole("client");
-  await supabase.from("homework").update({ status, client_response: response ?? null }).eq("id", id);
+  const { error } = await supabase.from("homework").update({ status, client_response: response ?? null }).eq("id", id);
+  if (error) return { error: friendly(error, "Didn't save. Try again.") };
   revalidatePath("/my");
+  return {};
 }

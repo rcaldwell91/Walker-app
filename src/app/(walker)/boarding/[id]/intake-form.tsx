@@ -5,6 +5,7 @@ import { saveStayIntake } from "../actions";
 import { Button, Card, ErrorText } from "@/components/ui";
 import { BoardingClientFields, BoardingPetFields } from "@/components/boarding-intake";
 import type { PetBoarding } from "@/lib/boarding";
+import { FormDraft } from "@/components/form-draft";
 
 /** The walker filling in or correcting the boarding answers for this stay's pets. */
 export function StayIntakeForm({
@@ -21,6 +22,7 @@ export function StayIntakeForm({
   const [state, action, pending] = useActionState(saveStayIntake.bind(null, stayId), undefined);
   return (
     <form action={action} className="flex flex-col gap-3" data-stay-intake-form>
+      <FormDraft id={`stay-intake:${stayId}`} done={state?.saved} />
       {pets.map((p) => (
         <Card key={p.id} className="flex flex-col gap-3">
           <p className="font-medium">{p.name}</p>

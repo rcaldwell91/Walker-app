@@ -6,18 +6,20 @@ import { cents, fmtDate } from "@/lib/format";
 import { METHOD_LABEL, statusLabel, summarize } from "@/lib/billing";
 import { Card, PageTitle } from "@/components/ui";
 import { BackBar } from "@/components/back-bar";
+import { readNotificationsFor } from "@/lib/notify";
 
 const one = <T,>(x: T | T[] | null | undefined) => (Array.isArray(x) ? x[0] : x) ?? null;
 
 export default async function ClientInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireRole("client");
+  await readNotificationsFor(supabase, `/my/invoices/${id}`);
   const tz = await getTimeZone();
   // RLS: only this client's invoices, and only once sent.
   const { data: inv } = await supabase
     .from("invoices")
     .select(
-      "id, number, status, client_id, period_start, period_end, issued_on, due_on, voided_at, void_total_cents, walker:walkers(business_name, profile:profiles(full_name)), invoice_lines(id, kind, description, occurred_on, amount_cents), payments(id, amount_cents, method, received_on)",
+      "id, number, status, client_id, period_start, period_end, issued_on, due_on, voided_at, void_total_cents, walker:walkers(business_name, payment_methods, profile:profiles(full_name)), invoice_lines(id, kind, description, occurred_on, amount_cents), payments(id, amount_cents, method, received_on)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -25,6 +27,8 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
   const s = summarize([inv], dateKey(new Date(), tz))[0];
   const w = one(inv.walker);
   const from = w?.business_name || one(w?.profile)?.full_name || "Your walker";
+  const methods = ((w?.payment_methods as string[] | null) ?? ["cash", "venmo", "zelle", "check"]).filter((m) => m !== "other").map((m) => METHOD_LABEL[m as keyof typeof METHOD_LABEL] ?? m);
+  const payBy = methods.length ? (methods.length > 1 ? `${methods.slice(0, -1).join(", ")} or ${methods.at(-1)}` : methods[0]) : "the way you agreed";
   const lines = [...(inv.invoice_lines ?? [])].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
   const payments = [...(inv.payments ?? [])].sort((a, b) => a.received_on.localeCompare(b.received_on));
 
@@ -88,11 +92,8 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
 
       {inv.status === "void" ? null : s.balance > 0 ? (
         <Card className="border-dashed text-center" data-pay-by-card>
-          <button type="button" disabled className="btn w-full rounded-xl bg-accent/40 px-4 font-medium text-accent-fg">
-            Pay by card — coming soon
-          </button>
-          <p className="mt-2 text-sm text-muted">
-            For now, pay {from} the way you usually do (cash, Venmo, Zelle, check). They&apos;ll mark it received here.
+          <p className="text-sm text-muted">
+            Pay {from} by {payBy}. They&apos;ll mark it received here.
           </p>
         </Card>
       ) : (

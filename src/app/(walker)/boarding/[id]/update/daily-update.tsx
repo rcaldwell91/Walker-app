@@ -133,7 +133,7 @@ export function DailyUpdate({
     });
   }
 
-  const allPhotos = [...initialPhotos.map((p) => ({ id: p.id, url: p.url, status: "done" as const })), ...queue.items];
+  const allPhotos = [...initialPhotos.map((p) => ({ id: p.id, url: p.url, status: "done" as const })), ...queue.items.filter((q) => !initialPhotos.some((p) => p.id === q.id))];
 
   function post() {
     setError(null);
@@ -150,6 +150,7 @@ export function DailyUpdate({
         if (e && typeof e === "object" && "digest" in e && String((e as { digest?: string }).digest).startsWith("NEXT_REDIRECT")) {
           try {
             localStorage.removeItem(storageKey); // posted: the draft is done
+            localStorage.removeItem(`talk:stay-${updateId}`);
           } catch {}
           throw e;
         }
@@ -174,6 +175,7 @@ export function DailyUpdate({
         emptyPrompt="Say how the day went first."
         fillLabel="Fill in the update"
         onFill={applyVoice}
+        draftKey={`talk:stay-${updateId}`}
       />
       {undo ? (
         <VoiceFilledBar
@@ -229,6 +231,7 @@ export function DailyUpdate({
           })
         }
         onFiles={queue.add}
+        onRetry={queue.retry}
         groupHint="Tap the pets in each photo. A photo with none tagged shows for the whole stay."
       />
 
@@ -243,10 +246,10 @@ export function DailyUpdate({
         />
       </div>
 
-      <ErrorText>{error}</ErrorText>
       <Button className="h-16 text-lg" disabled={posting || queue.pending > 0} onClick={post} data-post-update>
         {posting ? "Posting…" : queue.pending ? `Waiting for ${queue.pending} photo${queue.pending === 1 ? "" : "s"}…` : posted ? "Post changes" : "Post update"}
       </Button>
+      <ErrorText>{error}</ErrorText>
       <BackBar href={`/boarding/${stayId}`} label="Stay" />
     </div>
   );

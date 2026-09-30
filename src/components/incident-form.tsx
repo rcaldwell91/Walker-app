@@ -4,11 +4,13 @@ import { useActionState } from "react";
 import { fileIncident } from "@/app/(walker)/walk/actions";
 import { Button, ErrorText, Field, Select } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
+import { FormDraft } from "@/components/form-draft";
 
 export function IncidentForm({ walkId, dogs }: { walkId: string | null; dogs: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState(fileIncident.bind(null, walkId), undefined);
   return (
     <form action={action} className="flex flex-col gap-4">
+      <FormDraft id={`incident:${walkId ?? "none"}`} />
       <Field label="Pet">
         <Select name="dog_id" defaultValue={dogs.length === 1 ? dogs[0].id : ""}>
           <option value="">Not about one pet</option>
@@ -37,10 +39,10 @@ export function IncidentForm({ walkId, dogs }: { walkId: string | null; dogs: { 
       <Field label="What you did about it">
         <VoiceInput name="action_taken" rows={2} />
       </Field>
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save report"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

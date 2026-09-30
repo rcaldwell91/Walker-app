@@ -7,7 +7,8 @@ export default async function MorePage() {
   const [{ count: newSuggestions }, { count: drafts }, { count: incoming }] = await Promise.all([
     supabase.from("suggestions").select("id", { count: "exact", head: true }).eq("walker_id", user.id).is("read_at", null),
     supabase.from("invoices").select("id", { count: "exact", head: true }).eq("walker_id", user.id).eq("status", "draft"),
-    supabase.from("coverage_requests").select("id", { count: "exact", head: true }).eq("to_walker_id", user.id).eq("status", "open"),
+    // The badge counts what the Squad page shows: walkers asking to join yours.
+    supabase.from("squad_links").select("id", { count: "exact", head: true }).eq("recipient_id", user.id).eq("status", "pending"),
   ]);
 
   return (
@@ -33,8 +34,9 @@ export default async function MorePage() {
             href: "/squad",
             label: "Coverage squad",
             sub: "Walkers who can cover for you",
-            badge: incoming ? <Badge tone="warn">{incoming} asking</Badge> : undefined,
+            badge: incoming ? <Badge>{incoming} asking</Badge> : undefined,
           },
+          { href: "/settings", label: "Business settings", sub: "Boarding times, early pick-ups, photos, how clients pay, tips" },
           { href: "/profile", label: "Profile & account", sub: "Public profile, notifications, appearance, home screen, background check, log out" },
           { href: "/coming-soon", label: "Coming soon", sub: "Alerts, forums, meetups, resources, marketplace" },
         ]}

@@ -26,7 +26,7 @@ export default async function WalkerInvoicePage({
   const { data: inv } = await supabase
     .from("invoices")
     .select(
-      "id, number, status, client_id, period_start, period_end, issued_on, due_on, sent_at, voided_at, void_total_cents, client:clients(name), invoice_lines(id, kind, description, occurred_on, quantity, unit_cents, amount_cents, walk_id), payments(id, amount_cents, method, received_on, note)",
+      "id, number, status, client_id, period_start, period_end, issued_on, due_on, sent_at, voided_at, void_total_cents, client:clients(name, profile_id), invoice_lines(id, kind, description, occurred_on, quantity, unit_cents, amount_cents, walk_id), payments(id, amount_cents, method, received_on, note)",
     )
     .eq("id", id)
     .eq("walker_id", user.id)
@@ -38,6 +38,7 @@ export default async function WalkerInvoicePage({
   const lines = [...(inv.invoice_lines ?? [])].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || a.kind.localeCompare(b.kind));
   const payments = [...(inv.payments ?? [])].sort((a, b) => a.received_on.localeCompare(b.received_on));
 
+  const { data: me } = await supabase.from("walkers").select("payment_methods").eq("id", user.id).maybeSingle();
   return (
     <>
       <PageTitle
@@ -109,7 +110,9 @@ export default async function WalkerInvoicePage({
               Send to {one(inv.client)?.name?.split(" ")[0] ?? "client"} · {cents(s.total)}
             </Button>
           </form>
-          <p className="mt-2 text-center text-xs text-muted">They get it in the app with a notification. Sent invoices can&apos;t be edited.</p>
+          <p className="mt-2 text-center text-xs text-muted">
+            {one(inv.client)?.profile_id ? "They see it in the app." : "They'll see it once they join the app."} Sent invoices can&apos;t be edited.
+          </p>
         </>
       ) : null}
 
@@ -129,7 +132,7 @@ export default async function WalkerInvoicePage({
               ))}
             </ul>
           ) : null}
-          {s.balance > 0 ? <PaymentForm invoiceId={inv.id} today={today} balance={s.balance} /> : <p className="text-sm text-accent">Paid in full.</p>}
+          {s.balance > 0 ? <PaymentForm invoiceId={inv.id} today={today} balance={s.balance} methods={(me?.payment_methods as string[] | null) ?? ["cash", "venmo", "zelle", "check"]} /> : <p className="text-sm text-accent">Paid in full.</p>}
           {!payments.length ? <VoidButton invoiceId={inv.id} /> : null}
         </>
       ) : null}

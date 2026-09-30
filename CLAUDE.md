@@ -81,6 +81,21 @@ Free and keyless for now. Each piece sits behind one file so Mapbox or Google ca
 - **Squad members see each other only through `squad_overview()`** (name, handle, photo, business name, service area, phone). Walker lookup is exact-handle only (`find_walker_by_handle`). Clients see their walker's squad through `client_squad_choices()`.
 - Covered walk reports: `/report/[id]` (regular walker) and `/my/walks/[id]` (client) both render `WalkReportView`.
 
+## Product standards in code
+
+- **Taps from the field go through `tap()`** (`src/lib/offline.ts`): with no signal a server action throws; `tap` turns that into one plain line ("No signal. Tap again…") shown where the person tapped, never an error page. Actions return `{ error }` instead of ignoring failures, and the screen shows ✓/"Saved"/"Sent" only after that came back OK.
+- **Errors people see go through `friendly()`** (`src/lib/errors.ts`). Our own `raise exception` messages (code P0001) pass through; anything technical is logged and replaced with one plain line. Never show `error.message`.
+- **Nothing typed or tapped is only on screen.** The wrap-up and daily update are drafts in localStorage; quick notes (`useNoteQueue`), GPS points (`gps-queue:`) and photos (IndexedDB, `usePhotoQueue` + `PendingPhotoSender`) wait on the phone until they're saved. Long forms get `<FormDraft id done>` (`src/components/form-draft.tsx`). Settings save on each change.
+- **Nobody waits on side work:** `notify()` sends after the response (`after()` from `next/server`), and so does the client-intake address lookup.
+- **Nothing moves under a finger:** status and error lines sit *under* the button with their space reserved (`<FormStatus>`); counts and "−" on log buttons have fixed slots; a warning changes the same button in place ("Book anyway").
+- **One colour, one meaning:** accent = go/done, warn = problem, voice = anything about voice (listening, filled from voice), fg-inverted = End walk.
+- **Business choices are walker settings** (`/settings`, 0024): boarding times, early pick-up billing, untagged photos, payment methods, tip amounts, ETA speed. Add new ones there, with a default matching today's behaviour.
+
+## Testing never writes to the live project
+
+- Database tests: the RLS smoke test on a scratch Postgres (below).
+- Browser tests: a local Supabase in Docker (`supabase start` with `supabase/config.toml`, all migrations applied) and `next dev` pointed at it with `NEXT_PUBLIC_SUPABASE_URL`/keys from `supabase status -o env`. Seed throwaway `@e2e.test` logins there. If a live run is ever unavoidable, use `+e2e` logins and put `[test]` in names. `docs/TEST_DATA.md` lists what earlier rounds left in the live project; Robert's real data (John, Spot) is never in scope.
+
 ## RLS smoke test
 
 On a scratch Postgres (not the real project):

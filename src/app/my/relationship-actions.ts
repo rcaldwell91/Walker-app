@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { notify } from "@/lib/notify";
+import { friendly } from "@/lib/errors";
 
 export type FormState = { error?: string; done?: number } | undefined;
 
@@ -27,7 +28,7 @@ export async function answerCheckIn(checkInId: string, _: FormState, form: FormD
     .eq("id", checkInId)
     .is("responded_at", null)
     .select("id");
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error, "Couldn't send. Try again.") };
   if (!data?.length) return { error: "That check-in is already answered" };
   // No revalidate: the card stays on screen to say thanks. /my and /my/more
   // are dynamic, so they load fresh answers on the next visit anyway.
@@ -59,7 +60,7 @@ export async function sendSuggestion(walkerId: string, _: FormState, form: FormD
   const { error } = await supabase
     .from("suggestions")
     .insert({ walker_id: walkerId, body, is_anonymous: !signed, client_id: clientId });
-  if (error) return { error: "Couldn't send that. Suggestions are for active clients when the walker has the box on." };
+  if (error) return { error: "Your walker isn't taking suggestions right now." };
   return { done: Date.now() };
 }
 
@@ -80,7 +81,7 @@ export async function rateWalk(walkId: string, _: FormState, form: FormData): Pr
     score: parsed.data.score,
     comment: parsed.data.comment || null,
   });
-  if (error) return { error: error.code === "23505" ? "You've already rated this walk" : error.message };
+  if (error) return { error: error.code === "23505" ? "You've already rated this walk" : friendly(error) };
   revalidatePath(`/my/walks/${walkId}`);
   return { done: Date.now() };
 }
@@ -98,7 +99,7 @@ export async function leaveTip(walkId: string, _: FormState, form: FormData): Pr
     walk_id: walkId,
     amount_cents: Math.round(dollars * 100),
   });
-  if (error) return { error: error.code === "23505" ? "You've already left a tip for this walk" : error.message };
+  if (error) return { error: error.code === "23505" ? "You've already left a tip for this walk" : friendly(error) };
   revalidatePath(`/my/walks/${walkId}`);
   return { done: Date.now() };
 }
@@ -141,7 +142,7 @@ export async function sendClientMessage(walkerId: string, _: FormState, form: Fo
   const { error } = await supabase
     .from("messages")
     .insert({ walker_id: walkerId, client_id: me.id, sender_id: user.id, kind: "custom", body });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error, "Couldn't send. Try again.") };
   await notify([walkerId], { kind: "message", title: `Message from ${me.name}`, body: body.slice(0, 140), url: `/messages/${me.id}` });
   revalidatePath("/my/messages");
   return { done: Date.now() };

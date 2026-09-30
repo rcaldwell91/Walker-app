@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { saveBooking } from "./actions";
 import { Button, ErrorText, Field, Input, Select } from "@/components/ui";
 import { WEEKDAYS } from "@/lib/time";
+import { FormDraft } from "@/components/form-draft";
 
 type ClientOpt = { id: string; name: string; dogs: { id: string; name: string }[] };
 type ServiceOpt = { id: string; name: string; default_duration_min: number };
@@ -59,6 +60,7 @@ export function BookingForm({
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      <FormDraft id={`booking:${bookingId ?? "new"}`} />
       <input type="hidden" name="tz" value={tz} />
       <Field label="Client">
         <Select name="client_id" value={clientId} onChange={(e) => pickClient(e.target.value)} required>
@@ -167,10 +169,10 @@ export function BookingForm({
         </Field>
       ) : null}
 
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending || !tz} className="h-14 text-lg">
         {pending ? "Saving…" : bookingId ? "Save changes" : "Add booking"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

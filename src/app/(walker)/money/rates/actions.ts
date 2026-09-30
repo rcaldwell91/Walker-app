@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
+import { friendly } from "@/lib/errors";
 
 export type RatesState = { error?: string; saved?: number } | undefined;
 
@@ -29,7 +30,7 @@ export async function saveRates(_: RatesState, form: FormData): Promise<RatesSta
   }
   if (rows.length) {
     const { error } = await supabase.from("walker_services").upsert(rows, { onConflict: "walker_id,service_type_id" });
-    if (error) return { error: error.message };
+    if (error) return { error: friendly(error) };
   }
   revalidatePath("/money/rates");
   return { saved: Date.now() };

@@ -32,10 +32,10 @@ export function MoveOccurrenceForm({
       <Field label="Minutes">
         <Input type="number" name="duration_min" min={5} max={1440} step={5} defaultValue={defaultDuration} required />
       </Field>
-      <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" variant="secondary" disabled={pending || !tz}>
         {pending ? "Moving…" : "Move just this one"}
       </Button>
+      <ErrorText>{state?.error}</ErrorText>
     </form>
   );
 }

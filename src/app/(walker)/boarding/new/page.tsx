@@ -12,7 +12,7 @@ export default async function NewStayPage({ searchParams }: { searchParams: Prom
   const today = dateKey(new Date(), tz);
   const [{ data: clients }, { data: me }] = await Promise.all([
     supabase.from("clients").select("id, name, status, dogs(id, name, active)").eq("walker_id", user.id).order("name"),
-    supabase.from("walkers").select("boarding_night_cents, boarding_extra_pet_cents").eq("id", user.id).single(),
+    supabase.from("walkers").select("boarding_night_cents, boarding_extra_pet_cents, boarding_dropoff_time, boarding_pickup_time").eq("id", user.id).single(),
   ]);
   const list = (clients ?? [])
     .filter((c) => c.status !== "archived" || c.id === sp.client)
@@ -31,6 +31,8 @@ export default async function NewStayPage({ searchParams }: { searchParams: Prom
         endDay={addDays(start, 1)}
         nightCents={me?.boarding_night_cents ?? null}
         extraCents={me?.boarding_extra_pet_cents ?? null}
+        dropoffTime={String(me?.boarding_dropoff_time ?? "09:00").slice(0, 5)}
+        pickupTime={String(me?.boarding_pickup_time ?? "17:00").slice(0, 5)}
       />
       <BackBar href={back.href} label={back.label} />
     </>

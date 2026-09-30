@@ -3,11 +3,13 @@ import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
 import { BackBar } from "@/components/back-bar";
 import { loadWalkReport, WalkReportView } from "@/components/walk-report";
+import { readNotificationsFor } from "@/lib/notify";
 
 /** Read-only report of a walk someone in your squad did with your pets. */
 export default async function CoveredWalkReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, user } = await requireRole("walker", "operator");
+  await readNotificationsFor(supabase, `/report/${id}`);
   const tz = await getTimeZone();
   const data = await loadWalkReport(supabase, id);
   if (!data) notFound();

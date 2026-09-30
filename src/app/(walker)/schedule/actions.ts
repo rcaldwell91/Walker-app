@@ -11,6 +11,7 @@ import { getTimeZone } from "@/lib/timezone";
 import { notify } from "@/lib/notify";
 import { fmtDate, fmtTime } from "@/lib/format";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { friendly } from "@/lib/errors";
 
 /**
  * After one day of a booking changes, bring that day's covers along (the
@@ -69,7 +70,7 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
   const dogIds = form.getAll("dog_id").map(String).filter(Boolean);
   const repeatUntil = repeatWeekdays.length && isDateKey(d.repeat_until) ? d.repeat_until : null;
   if (repeatUntil && repeatUntil < d.date) return { error: "Repeat-until has to be after the first day" };
-  if (!dogIds.length) return { error: "Pick at least one dog" };
+  if (!dogIds.length) return { error: "Pick at least one pet" };
 
   const { supabase, user } = await requireRole("walker", "operator");
 
@@ -82,7 +83,7 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
     .maybeSingle();
   if (!client) return { error: "That client isn't on your list" };
   const ownDogs = new Set((client.dogs ?? []).map((x) => x.id));
-  if (dogIds.some((x) => !ownDogs.has(x))) return { error: "Those dogs don't belong to that client" };
+  if (dogIds.some((x) => !ownDogs.has(x))) return { error: "Those pets don't belong to that client" };
 
   const row = {
     walker_id: user.id,
@@ -97,9 +98,9 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
   let bookingId = id;
   if (id) {
     const { error } = await supabase.from("bookings").update(row).eq("id", id);
-    if (error) return { error: error.message };
+    if (error) return { error: friendly(error) };
     const { error: delErr } = await supabase.from("booking_dogs").delete().eq("booking_id", id);
-    if (delErr) return { error: delErr.message };
+    if (delErr) return { error: friendly(delErr) };
   } else {
     const { data, error } = await supabase.from("bookings").insert(row).select("id").single();
     if (error || !data) return { error: error?.message ?? "Couldn't save" };
@@ -108,7 +109,7 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
   const { error: dogErr } = await supabase
     .from("booking_dogs")
     .insert(dogIds.map((dog_id) => ({ booking_id: bookingId!, dog_id })));
-  if (dogErr) return { error: `Saved, but the pets didn't attach: ${dogErr.message}` };
+  if (dogErr) return { error: "Saved, but the pets didn't attach. Edit the booking to add them." };
 
   revalidatePath("/schedule");
   revalidatePath("/home");
@@ -181,7 +182,7 @@ export async function moveOccurrence(bookingId: string, day: string, _: ActionSt
     },
     { onConflict: "booking_id,occurs_on" },
   );
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   await followCovers(ok.supabase, ok.booking, day, { startsAt: movedTo, durationMin: d.duration_min }, d.tz, await myName(ok.supabase, ok.user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
