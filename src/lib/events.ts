@@ -12,6 +12,8 @@ export const EVENT_LABELS: Record<string, string> = {
   litter: "Litter scooped",
   cage: "Cage cleaned",
   play: "Playtime",
+  potty: "Potty",
+  walk: "Walk",
   note: "Note",
   pickup: "Picked up",
   dropoff: "Dropped off",
@@ -30,5 +32,7 @@ export const EVENT_EMOJI: Record<string, string> = {
   litter: "🐈",
   cage: "🧹",
   play: "🎾",
+  potty: "🌿",
+  walk: "🦮",
   note: "📝",
 };

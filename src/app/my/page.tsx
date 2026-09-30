@@ -8,7 +8,8 @@ import { CheckInForm } from "./relationship-forms";
 import { ApprovalPrompt, type SquadChoice } from "./backup-walkers";
 import { NotificationsInbox } from "@/components/notifications-inbox";
 import { notifyOpenedCheckIns } from "@/lib/notify";
-import { dateKey } from "@/lib/time";
+import { dateKey, fmtDateKey } from "@/lib/time";
+import { sendStayReminders } from "@/lib/boarding-reminders";
 import { INVOICE_FIELDS, summarize } from "@/lib/billing";
 
 export default async function ClientHome() {
@@ -38,6 +39,14 @@ export default async function ClientHome() {
   const overdue = open.some((i) => i.overdue);
   const asks = ((choices ?? []) as SquadChoice[]).filter((c) => c.asked && !c.approved);
   await notifyOpenedCheckIns(openCheckIns);
+  await sendStayReminders(supabase, tz);
+  const today = dateKey(new Date(), tz);
+  const { data: stays } = await supabase
+    .from("boarding_stays")
+    .select("id, start_day, end_day, stay_pets(dog:dogs(name))")
+    .eq("status", "booked")
+    .gte("end_day", today)
+    .order("start_day");
   const walkerNameFor = (clientId: string) => {
     const c = (clients ?? []).find((x) => x.id === clientId);
     const w = c && (Array.isArray(c.walker) ? c.walker[0] : c.walker);
@@ -91,6 +100,21 @@ export default async function ClientHome() {
           </Card>
         </Link>
       ) : null}
+
+      {(stays ?? []).map((st) => {
+        const names = (st.stay_pets ?? []).map((sp) => (Array.isArray(sp.dog) ? sp.dog[0] : sp.dog)?.name).filter(Boolean).join(" & ");
+        const now = st.start_day <= today;
+        return (
+          <Link key={st.id} href={`/my/stays/${st.id}`} className="mb-4 block" data-my-stay={st.id}>
+            <Card className={now ? "border-accent bg-accent/10" : ""}>
+              <p className={`text-sm font-medium ${now ? "text-accent" : ""}`}>{now ? `${names} is boarding now` : `Boarding booked for ${names}`}</p>
+              <p className="text-muted">
+                {fmtDateKey(st.start_day)} – {fmtDateKey(st.end_day)} · {now ? "tap for today's updates" : "tap to check the details"}
+              </p>
+            </Card>
+          </Link>
+        );
+      })}
 
       <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Your pets</h2>
       {!dogs?.length ? (

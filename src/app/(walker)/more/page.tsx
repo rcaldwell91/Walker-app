@@ -22,7 +22,7 @@ export default async function MorePage() {
             sub: "Invoices, payments, tips, my rates",
             badge: drafts ? <Badge>{drafts} to send</Badge> : undefined,
           },
-          { href: "/hours", label: "Schedule & hours", sub: "Bookings, hours this week and month, time off" },
+          { href: "/hours", label: "Schedule & hours", sub: "Bookings, boarding, hours this week and month, time off" },
           {
             href: "/check-ins",
             label: "Check-ins & suggestions",

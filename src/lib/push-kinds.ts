@@ -1,4 +1,4 @@
-export type PushKind = "message" | "status" | "report" | "homework" | "checkin" | "coverage" | "invoice" | "payment";
+export type PushKind = "message" | "status" | "report" | "homework" | "checkin" | "coverage" | "invoice" | "payment" | "boarding";
 
 /** What each role can turn on/off, in settings order. */
 export const PUSH_KINDS: { key: PushKind; label: string; roles: ("walker" | "client")[] }[] = [
@@ -10,4 +10,5 @@ export const PUSH_KINDS: { key: PushKind; label: string; roles: ("walker" | "cli
   { key: "coverage", label: "Coverage requests and changes", roles: ["walker"] },
   { key: "invoice", label: "New invoice", roles: ["client"] },
   { key: "payment", label: "Payment received", roles: ["client"] },
+  { key: "boarding", label: "Boarding: stays starting or ending tomorrow, daily updates", roles: ["walker", "client"] },
 ];

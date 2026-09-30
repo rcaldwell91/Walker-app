@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { saveClientCoordinates } from "@/lib/geo/geocode";
+import { PET_BOARDING_FIELDS } from "@/lib/boarding";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -15,6 +16,7 @@ const intakeSchema = z.object({
   city: z.string().optional(),
   emergency_contact: z.string().optional(),
   home_access_notes: z.string().optional(),
+  boarding_bringing: z.string().max(1000).optional(),
 });
 
 const dogSchema = z.object({
@@ -35,11 +37,11 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
   const parsed = intakeSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { supabase, user } = await requireRole("client");
-  const { client_id, ...contact } = parsed.data;
+  const { client_id, boarding_bringing, ...contact } = parsed.data;
 
   const { error } = await supabase
     .from("clients")
-    .update({ ...contact, intake_completed_at: new Date().toISOString() })
+    .update({ ...contact, boarding_bringing: boarding_bringing?.trim() || null, intake_completed_at: new Date().toISOString() })
     .eq("id", client_id)
     .eq("profile_id", user.id);
   if (error) return { error: error.message };
@@ -56,10 +58,18 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
     const d = dogSchema.safeParse(raw);
     if (!d.success || !d.data.name.trim()) continue;
     const { id, weight_lbs, birthdate, ...rest } = d.data;
+    // Boarding answers come in as dog[i][b_feeding], ... (the same pet profile, an extra section).
+    const boarding: Record<string, string | boolean> = {};
+    for (const f of PET_BOARDING_FIELDS) {
+      const v = (raw[`b_${f.key}`] ?? "").trim().slice(0, 1000);
+      if (v) boarding[f.key] = v;
+    }
+    boarding.vet_release = raw.b_vet_release === "on";
     const payload = {
       ...rest,
       weight_lbs: weight_lbs ? Number(weight_lbs) : null,
       birthdate: birthdate || null,
+      boarding,
     };
     if (id) await supabase.from("dogs").update(payload).eq("id", id);
     else await supabase.from("dogs").insert({ ...payload, client_id, walker_id: clientRow!.walker_id });

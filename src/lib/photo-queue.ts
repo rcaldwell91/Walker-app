@@ -5,13 +5,17 @@ import { createClient } from "@/lib/supabase/client";
 
 export type QueuedPhoto = { id: string; url: string; status: "done" | "uploading" | "queued" | "error" };
 
+/** What the photos belong to: a walk, or one day's update on a boarding stay. */
+export type PhotoOwner = { walkId: string } | { stayUpdateId: string };
+
 /**
- * Photos for a walk: shrunk in the browser (trail uploads on one bar are slow),
+ * Photos for a walk or a stay's daily update: shrunk in the browser (trail uploads on one bar are slow),
  * uploaded to Storage, and recorded as a row. Anything that fails while offline
  * is retried when the connection returns. Owners see a walk's photos only once
- * the walk is finished (migration 0018), so uploading early is safe.
+ * the walk is finished (0018), and a day's photos once the update is posted
+ * (0020), so uploading early is safe.
  */
-export function usePhotoQueue(walkId: string, walkerId: string, initial: QueuedPhoto[] = []) {
+export function usePhotoQueue(owner: PhotoOwner, walkerId: string, initial: QueuedPhoto[] = []) {
   const [items, setItems] = useState<QueuedPhoto[]>(initial);
   const retry = useRef<(() => void)[]>([]);
 
@@ -30,12 +34,19 @@ export function usePhotoQueue(walkId: string, walkerId: string, initial: QueuedP
         try {
           const blob = await shrink(file);
           const supabase = createClient();
-          const path = `${walkerId}/${walkId}/${id}.jpg`;
+          const folder = "walkId" in owner ? owner.walkId : `stay-${owner.stayUpdateId}`;
+          const path = `${walkerId}/${folder}/${id}.jpg`;
           const { error } = await supabase.storage.from("photos").upload(path, blob, { contentType: "image/jpeg", upsert: true });
           if (error) throw error;
           const { error: rowErr } = await supabase
             .from("photos")
-            .upsert({ id, walker_id: walkerId, walk_id: walkId, storage_path: path, taken_at: new Date(file.lastModified).toISOString() });
+            .upsert({
+              id,
+              walker_id: walkerId,
+              ...("walkId" in owner ? { walk_id: owner.walkId } : { stay_update_id: owner.stayUpdateId }),
+              storage_path: path,
+              taken_at: new Date(file.lastModified).toISOString(),
+            });
           if (rowErr) throw rowErr;
           setItems((it) => it.map((x) => (x.id === id ? { ...x, status: "done" } : x)));
         } catch {

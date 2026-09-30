@@ -35,6 +35,7 @@ export default async function HoursPage() {
         items={[
           { href: "/schedule", label: "Bookings", sub: left ? `${left} more this week` : "Nothing else booked this week" },
           { href: "/schedule/new", label: "Add a booking", sub: "One-off or repeating" },
+          { href: "/boarding", label: "Boarding", sub: "Overnight stays: calendar, capacity, daily updates" },
         ]}
       />
 

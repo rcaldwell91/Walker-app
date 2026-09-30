@@ -51,6 +51,14 @@ export default async function ClientDetailPage({
     supabase.from("invoice_lines").select("amount_cents").eq("client_id", client.id).eq("walker_id", user.id).is("invoice_id", null),
   ]);
   const invoices = summarize(invoiceRows ?? [], dateKey(new Date(), tz));
+  const { data: stays } = await supabase
+    .from("boarding_stays")
+    .select("id, start_day, end_day, nights, status")
+    .eq("client_id", client.id)
+    .eq("walker_id", user.id)
+    .neq("status", "cancelled")
+    .order("start_day", { ascending: false })
+    .limit(5);
   const unbilledTotal = (unbilled ?? []).reduce((n, l) => n + l.amount_cents, 0);
   const owed = invoices.filter((i) => i.status === "sent").reduce((n, i) => n + i.balance, 0);
   const { data: myRatings } = await supabase
@@ -107,6 +115,27 @@ export default async function ClientDetailPage({
           ))}
       </ul>
       <AddDogForm clientId={client.id} />
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Boarding</h2>
+      {stays?.length ? (
+        <ul className="mb-3 flex flex-col gap-2" data-client-stays>
+          {stays.map((s) => (
+            <li key={s.id}>
+              <Link href={`/boarding/${s.id}`}>
+                <Card className="flex items-center justify-between text-sm">
+                  <span>
+                    {fmtDateKey(s.start_day)} – {fmtDateKey(s.end_day)} · {s.nights} night{s.nights === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-muted">{s.status === "done" ? "Picked up" : "Booked"}</span>
+                </Card>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <LinkButton href={`/boarding/new?client=${client.id}`} variant="secondary" className="w-full" data-client-book-stay>
+        Book a stay
+      </LinkButton>
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Contact</h2>
       <Card className="text-sm">

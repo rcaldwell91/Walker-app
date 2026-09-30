@@ -2,12 +2,14 @@ import { requireRole } from "@/lib/session";
 import { PageTitle, SectionTitle } from "@/components/ui";
 import { BackBar } from "@/components/back-bar";
 import { RatesForm } from "./rates-form";
+import { BoardingRatesForm } from "./boarding-rates-form";
 
 export default async function RatesPage() {
   const { supabase, user } = await requireRole("walker", "operator");
-  const [{ data: types }, { data: mine }] = await Promise.all([
+  const [{ data: types }, { data: mine }, { data: me }] = await Promise.all([
     supabase.from("service_types").select("id, name, default_duration_min, walker_id, sort_order").order("sort_order"),
     supabase.from("walker_services").select("service_type_id, rate_cents, duration_min, enabled").eq("walker_id", user.id),
+    supabase.from("walkers").select("boarding_night_cents, boarding_extra_pet_cents").eq("id", user.id).single(),
   ]);
   const byType = new Map((mine ?? []).map((s) => [s.service_type_id, s]));
   const services = (types ?? [])
@@ -25,9 +27,11 @@ export default async function RatesPage() {
     });
   return (
     <>
-      <PageTitle sub="What you charge. Finished walks bill at these rates.">My rates</PageTitle>
+      <PageTitle sub="What you charge. Finished walks and stays bill at these rates.">My rates</PageTitle>
       <SectionTitle>Walks and visits</SectionTitle>
       <RatesForm services={services} />
+      <SectionTitle>Boarding</SectionTitle>
+      <BoardingRatesForm night={me?.boarding_night_cents ?? null} extra={me?.boarding_extra_pet_cents ?? null} />
       <BackBar href="/money" label="Money" />
     </>
   );

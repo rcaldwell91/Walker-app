@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import { submitIntake } from "../actions";
 import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
+import { BoardingClientFields, BoardingPetFields } from "@/components/boarding-intake";
+import type { PetBoarding } from "@/lib/boarding";
 
 type Dog = {
   id?: string;
@@ -17,11 +19,13 @@ type Dog = {
   medications?: string | null;
   allergies?: string | null;
   quirks?: string | null;
+  boarding?: PetBoarding | null;
 };
 
 export function IntakeForm({
   client,
   dogs: initialDogs,
+  boardingOpen,
 }: {
   client: {
     id: string;
@@ -30,8 +34,11 @@ export function IntakeForm({
     city: string | null;
     emergency_contact: string | null;
     home_access_notes: string | null;
+    boarding_bringing: string | null;
   };
   dogs: Dog[];
+  /** Open the boarding sections (a stay is booked). */
+  boardingOpen: boolean;
 }) {
   const [state, action, pending] = useActionState(submitIntake, undefined);
   const [dogs, setDogs] = useState<Dog[]>(initialDogs.length ? initialDogs : [{ name: "" }]);
@@ -101,12 +108,23 @@ export function IntakeForm({
           <Field label="Anything your walker should know" hint="Reactive to bikes? Pulls? Scared of trucks? Loves squirrels? Tap the mic and just talk.">
             <VoiceInput name={`dog[${i}][quirks]`} defaultValue={d.quirks ?? ""} />
           </Field>
+          <details open={boardingOpen} className="rounded-xl border border-border px-3" data-boarding-section>
+            <summary className="min-h-11 cursor-pointer py-3 font-medium">Boarding (if {d.name || "they"} stay{d.name ? "s" : ""} over)</summary>
+            <div className="pb-3">
+              <BoardingPetFields pet={d.name || "your pet"} boarding={d.boarding ?? {}} nameFor={(k) => `dog[${i}][b_${k}]`} />
+            </div>
+          </details>
         </Card>
       ))}
 
       <Button type="button" variant="secondary" onClick={() => setDogs([...dogs, { name: "" }])}>
         + Another pet
       </Button>
+
+      <Card className="flex flex-col gap-4">
+        <h2 className="font-medium">For a boarding stay</h2>
+        <BoardingClientFields emergency={client.emergency_contact} bringing={client.boarding_bringing} emergencyName={null} />
+      </Card>
 
       <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending}>

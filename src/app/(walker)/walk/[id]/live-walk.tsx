@@ -199,7 +199,7 @@ function BeforeStage({ walk, pets, gps, messages }: { walk: Walk; pets: Pet[]; g
 function WalkingStage({ walk, gps, notes, photoCount }: { walk: Walk; gps: Gps; notes: { id: string; note: string; at: string }[]; photoCount: number }) {
   const [pending, start] = useTransition();
   const elapsed = useElapsed(walk.walking_at!);
-  const photos = usePhotoQueue(walk.id, walk.walkerId);
+  const photos = usePhotoQueue({ walkId: walk.id }, walk.walkerId);
   const fileRef = useRef<HTMLInputElement>(null);
   const [noting, setNoting] = useState(false);
   const [note, setNote] = useState("");

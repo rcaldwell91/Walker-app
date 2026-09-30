@@ -96,12 +96,13 @@ export async function updateLine(lineId: string, invoiceId: string, _: MoneyStat
   return { done: Date.now() };
 }
 
-/** Extras and discounts can be removed; a walk line goes back to unbilled. */
+/** Extras and discounts can be removed; a walk line, or a whole stay, goes back to unbilled. */
 export async function removeLine(lineId: string, invoiceId: string) {
   const { supabase, invoice } = await draftInvoice(invoiceId);
   if (!invoice || invoice.status !== "draft") return;
-  const { data: line } = await supabase.from("invoice_lines").select("kind").eq("id", lineId).maybeSingle();
-  if (line?.kind === "walk") await supabase.from("invoice_lines").update({ invoice_id: null }).eq("id", lineId);
+  const { data: line } = await supabase.from("invoice_lines").select("kind, stay_id").eq("id", lineId).maybeSingle();
+  if (line?.stay_id) await supabase.from("invoice_lines").update({ invoice_id: null }).eq("stay_id", line.stay_id).eq("invoice_id", invoiceId);
+  else if (line?.kind === "walk") await supabase.from("invoice_lines").update({ invoice_id: null }).eq("id", lineId);
   else await supabase.from("invoice_lines").delete().eq("id", lineId);
   refresh(invoiceId);
 }

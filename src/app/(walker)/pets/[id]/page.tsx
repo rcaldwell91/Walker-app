@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
-import { Card, Empty, PageTitle } from "@/components/ui";
+import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
+import { BoardingAnswers } from "@/components/boarding-intake";
+import type { PetBoarding } from "@/lib/boarding";
 import { fmtDate } from "@/lib/format";
 import { DogEditForm } from "./dog-edit-form";
 import { HomeworkForm } from "./homework-form";
@@ -14,7 +16,7 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
   const tz = await getTimeZone();
   const { data: dog } = await supabase
     .from("dogs")
-    .select("*, client:clients(id, name), dog_notes(id, body, created_at, source), homework(id, title, status, due_at, client_response), incidents(id, severity, what_happened, occurred_at)")
+    .select("*, client:clients(id, name, emergency_contact, boarding_bringing), dog_notes(id, body, created_at, source), homework(id, title, status, due_at, client_response), incidents(id, severity, what_happened, occurred_at)")
     .eq("id", id)
     .eq("walker_id", user.id) // covering walkers see dogs on the cover page instead
     .maybeSingle();
@@ -28,6 +30,17 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
       </PageTitle>
 
       <DogEditForm dog={dog} />
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Boarding</h2>
+      <BoardingAnswers
+        pets={[{ id: dog.id, name: dog.name, boarding: (dog.boarding ?? {}) as PetBoarding }]}
+        emergency={client?.emergency_contact ?? null}
+        bringing={null}
+        empty={<p className="mb-2 text-sm text-muted">No boarding details yet. The owner fills them in on their intake, or you can on a stay.</p>}
+      />
+      <LinkButton href={`/boarding/new?client=${client?.id}&pet=${dog.id}`} variant="secondary" className="mt-2 w-full" data-pet-book-stay>
+        Book a stay for {dog.name}
+      </LinkButton>
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Homework</h2>
       {(dog.homework ?? []).length ? (

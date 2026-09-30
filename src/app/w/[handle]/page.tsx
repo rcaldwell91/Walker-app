@@ -18,6 +18,8 @@ type PublicProfile = {
   services: { name: string; category: string; rate_cents: number; duration_min: number }[];
   rating_count: number;
   rating_avg: number | null;
+  boarding: { night_cents: number; extra_pet_cents: number | null } | null;
+  space_photos: { storage_path: string; caption: string | null }[];
 };
 
 async function load(handle: string) {
@@ -35,6 +37,7 @@ export default async function PublicWalkerPage({ params }: { params: Promise<{ h
   const p = await load((await params).handle);
   if (!p) notFound();
   const title = p.business_name || p.full_name;
+  const spaceUrl = (path: string) => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
@@ -91,6 +94,34 @@ export default async function PublicWalkerPage({ params }: { params: Promise<{ h
       ) : (
         <Empty>Services and rates coming soon.</Empty>
       )}
+
+      {p.boarding ? (
+        <>
+          <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Boarding</h2>
+          <Card className="flex items-center justify-between" data-public-boarding>
+            <div>
+              <p className="font-medium">Overnight stays</p>
+              {p.boarding.extra_pet_cents != null ? <p className="text-sm text-muted">+{cents(p.boarding.extra_pet_cents)} a night for each extra pet</p> : null}
+            </div>
+            <p className="font-medium">{cents(p.boarding.night_cents)} a night</p>
+          </Card>
+        </>
+      ) : null}
+
+      {p.space_photos?.length ? (
+        <>
+          <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Where pets stay</h2>
+          <ul className="grid grid-cols-2 gap-2" data-public-space>
+            {p.space_photos.map((s) => (
+              <li key={s.storage_path}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={spaceUrl(s.storage_path)} alt={s.caption ?? "Boarding space"} className="aspect-square w-full rounded-xl object-cover" />
+                {s.caption ? <p className="mt-1 text-xs text-muted">{s.caption}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       <p className="mt-8 text-sm text-muted">
         Already a client? <Link href="/login" className="text-accent underline">Log in</Link>

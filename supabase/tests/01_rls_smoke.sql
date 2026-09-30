@@ -215,8 +215,8 @@ declare
   t text := p::text;
 begin
   if p is null then raise exception 'Public profile missing'; end if;
-  if (select array_agg(k order by k) from jsonb_object_keys(p) k) <> array['avatar_url','background_checked','bio','business_name','full_name',
-      'handle','rating_avg','rating_count','service_area','services'] then
+  if (select array_agg(k order by k) from jsonb_object_keys(p) k) <> array['avatar_url','background_checked','bio','boarding','business_name','full_name',
+      'handle','rating_avg','rating_count','service_area','services','space_photos'] then
     raise exception 'Public profile has unexpected fields: %', (select array_agg(k) from jsonb_object_keys(p) k);
   end if;
   if (p->>'rating_count')::int <> 2 or jsonb_array_length(p->'services') <> 1 or (p->'services'->0->>'rate_cents')::int <> 2500 then
@@ -696,6 +696,159 @@ do $$ begin
      or (select working_on from walk_dogs where walk_id = '30000000-0000-0000-0000-0000000000f2') <> 'heel'
      or (select count(*) from photo_pets where photo_id = '70000000-0000-0000-0000-000000000005') <> 1 then
     raise exception 'finish_walk saved the wrong things';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Boarding (0020): clients see only their own stays and posted updates;
+-- walkers only their own clients' stays (covering a walk gives nothing here).
+-- ---------------------------------------------------------------------------
+select _as('00000000-0000-0000-0000-00000000000a');
+update walkers set boarding_capacity = 2, boarding_night_cents = 5000, boarding_extra_pet_cents = 3000 where id = '00000000-0000-0000-0000-00000000000a';
+insert into boarding_stays (id, walker_id, client_id, starts_at, ends_at, start_day, end_day, nights, night_cents, extra_pet_cents, price_cents) values
+  ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001',
+   now(), now() + interval '2 days', current_date, current_date + 2, 2, 5000, 3000, 16000);
+insert into stay_pets (stay_id, dog_id) values
+  ('80000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001'),
+  ('80000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003');
+insert into stay_updates (id, stay_id, walker_id, day) values
+  ('81000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', current_date);
+insert into photos (id, walker_id, stay_update_id, storage_path) values
+  ('70000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-00000000000a', '81000000-0000-0000-0000-000000000001', 'a/stay/day1.jpg');
+reset role;
+insert into storage.objects (bucket_id, name) values ('photos', 'a/stay/day1.jpg');
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  begin
+    insert into boarding_stays (walker_id, client_id, starts_at, ends_at, start_day, end_day, nights, price_cents)
+      values ('00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000002', now(), now() + interval '1 day', current_date, current_date + 1, 1, 0);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker booked a stay for another walker''s client'; end if;
+  end;
+  begin
+    insert into stay_pets (stay_id, dog_id) values ('80000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000004');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Added another client''s pet to a stay'; end if;
+  end;
+end $$;
+-- Before it's posted, the owner sees the stay but not the day's update or its photo.
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select count(*) from boarding_stays) <> 1 or (select count(*) from stay_pets) <> 2 then raise exception 'Client should see their stay and its pets'; end if;
+  if exists (select 1 from stay_updates) or exists (select 1 from photos where stay_update_id is not null)
+     or exists (select 1 from storage.objects where name = 'a/stay/day1.jpg') then
+    raise exception 'Client sees an update that isn''t posted';
+  end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  -- Posting is all or nothing: a tag for a pet not on the stay fails the whole post.
+  begin
+    perform post_stay_update('81000000-0000-0000-0000-000000000001',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"fed","count":2}]', '[]',
+      '[{"photo_id":"70000000-0000-0000-0000-000000000009","dog_ids":["20000000-0000-0000-0000-000000000004"]}]', 'x');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Tagged a stay photo with a pet not on the stay'; end if;
+  end;
+  if exists (select 1 from stay_update_logs) or (select posted_at from stay_updates where id = '81000000-0000-0000-0000-000000000001') is not null then
+    raise exception 'A failed post left part of the update saved';
+  end if;
+  if post_stay_update('81000000-0000-0000-0000-000000000001',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"fed","count":2},{"dog_id":"20000000-0000-0000-0000-000000000003","kind":"play","count":1}]',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","category":"mood","score":5}]',
+      '[{"photo_id":"70000000-0000-0000-0000-000000000009","dog_ids":["20000000-0000-0000-0000-000000000001"]}]',
+      'Settled in well') is null then
+    raise exception 'First post should return when it was posted';
+  end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select note from stay_updates) <> 'Settled in well' or (select count(*) from stay_update_logs) <> 2
+     or (select count(*) from pet_scores where stay_update_id is not null) <> 1
+     or not exists (select 1 from photos where id = '70000000-0000-0000-0000-000000000009')
+     or not exists (select 1 from storage.objects where name = 'a/stay/day1.jpg') then
+    raise exception 'Client should see the posted update, its taps, rating and photo';
+  end if;
+end $$;
+-- Another client of the same walker, walker B (covering C''s walks right now) and D see none of it.
+select _as('00000000-0000-0000-0000-0000000000f2');
+do $$ begin
+  if exists (select 1 from boarding_stays) or exists (select 1 from stay_updates) or exists (select 1 from stay_pets)
+     or exists (select 1 from photos where stay_update_id is not null) then
+    raise exception 'Another client sees someone else''s stay';
+  end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from boarding_stays) or exists (select 1 from stay_updates) or exists (select 1 from stay_update_logs)
+     or exists (select 1 from photos where stay_update_id is not null) then
+    raise exception 'Another walker sees a stay';
+  end if;
+  begin
+    perform end_stay('80000000-0000-0000-0000-000000000001');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker B ended walker A''s stay'; end if;
+  end;
+end $$;
+-- Reminders are claimed once: the stay ends in two days, so "ends tomorrow" fires for that date only once.
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if (select count(*) from claim_stay_reminders(current_date + 2)) <> 1 then raise exception 'Expected one "ends tomorrow" reminder'; end if;
+  if (select count(*) from claim_stay_reminders(current_date + 2)) <> 0 then raise exception 'A reminder was claimed twice'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if (select count(*) from claim_stay_reminders(current_date)) <> 0 then raise exception 'Walker B claimed walker A''s reminders'; end if;
+end $$;
+-- The walker's space (0022): their own clients read the rows; everyone else only
+-- through the public profile, which carries the photos and boarding rates.
+select _as('00000000-0000-0000-0000-00000000000a');
+insert into walker_space_photos (walker_id, storage_path, caption) values ('00000000-0000-0000-0000-00000000000a', 'a/space-1.jpg', 'Back yard');
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select count(*) from walker_space_photos) <> 1 then raise exception 'Client should see their walker''s space photos'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from walker_space_photos) then raise exception 'Another walker reads the space photos table'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+set local role anon;
+do $$
+declare p jsonb := public_walker_profile('walker-a');
+begin
+  if exists (select 1 from walker_space_photos) then raise exception 'Logged-out visitor reads the space photos table'; end if;
+  if jsonb_array_length(p->'space_photos') <> 1 or (p->'boarding'->>'night_cents')::int <> 5000 then
+    raise exception 'Public profile should show the space photo and boarding rate: %', p;
+  end if;
+end $$;
+set local role authenticated;
+-- Pick-up: the stay goes on the bill. 2 nights × $50, 1 extra pet × 2 × $30 = $160.
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if end_stay('80000000-0000-0000-0000-000000000001') <> 'done' then raise exception 'end_stay should finish'; end if;
+  if end_stay('80000000-0000-0000-0000-000000000001') <> 'already done' then raise exception 'Ending twice should do nothing'; end if;
+  if (select sum(amount_cents) from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001') <> 16000
+     or (select count(*) from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001') <> 2 then
+    raise exception 'Stay should bill $160 in two lines, got %', (select string_agg(description || '=' || amount_cents, '; ') from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001');
+  end if;
+end $$;
+-- Voiding the invoice a stay was on sends the stay back to unbilled (0023), like a walk.
+insert into invoices (id, walker_id, client_id, period_start, period_end, number) values
+  ('60000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', current_date, current_date, 0);
+update invoice_lines set invoice_id = '60000000-0000-0000-0000-000000000009' where stay_id = '80000000-0000-0000-0000-000000000001';
+update invoices set status = 'sent' where id = '60000000-0000-0000-0000-000000000009';
+update invoices set status = 'void' where id = '60000000-0000-0000-0000-000000000009';
+do $$ begin
+  if exists (select 1 from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001' and invoice_id is not null)
+     or (select count(*) from invoice_lines where stay_id = '80000000-0000-0000-0000-000000000001') <> 2 then
+    raise exception 'Voiding should put the stay back to unbilled';
   end if;
 end $$;
 

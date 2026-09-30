@@ -8,11 +8,13 @@ import { fetchBookingsForRange, occurrencesBetween } from "@/lib/schedule";
 import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
 import { CoverBadge, CoveringCard, IncomingCoverCard } from "../cover-cards";
 import { NotificationsInbox } from "@/components/notifications-inbox";
+import { sendStayReminders } from "@/lib/boarding-reminders";
 
 export default async function TodayPage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const today = dateKey(new Date(), tz);
+  await sendStayReminders(supabase, tz);
 
   const [{ bookings, exceptions }, { data: activeWalk }, { count: clientCount }, coverage, { data: othersWalks }] = await Promise.all([
     fetchBookingsForRange(supabase, today, addDays(today, 1), tz),
@@ -22,6 +24,13 @@ export default async function TodayPage() {
     // Walks by someone else with your dogs on them: covered walks.
     supabase.from("walks").select("id, walker_id, started_at").neq("walker_id", user.id),
   ]);
+  const { data: boarders } = await supabase
+    .from("boarding_stays")
+    .select("id, stay_pets(dog:dogs(name)), stay_updates(day, posted_at)")
+    .eq("walker_id", user.id)
+    .eq("status", "booked")
+    .lte("start_day", today)
+    .gte("end_day", today);
   const todays = occurrencesBetween(bookings, today, addDays(today, 1), tz, exceptions).filter((o) => !o.skipped);
   const now = Date.now();
   const incoming = coverage.filter((r) => r.incoming && r.status === "open" && new Date(r.access_until).getTime() > now);
@@ -53,6 +62,24 @@ export default async function TodayPage() {
           Start a walk
         </LinkButton>
       )}
+
+      {boarders?.length ? (
+        <Card className="mb-4 flex flex-col gap-2" data-boarding-today>
+          <Link href="/boarding" className="text-sm font-medium text-accent">
+            Boarding now ›
+          </Link>
+          {boarders.map((b) => {
+            const names = (b.stay_pets ?? []).map((sp) => (Array.isArray(sp.dog) ? sp.dog[0] : sp.dog)?.name).filter(Boolean).join(" & ");
+            const done = (b.stay_updates ?? []).some((u) => u.day === today && u.posted_at);
+            return (
+              <Link key={b.id} href={done ? `/boarding/${b.id}` : `/boarding/${b.id}/update?day=${today}`} className="flex min-h-11 items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-medium">{names}</span>
+                <span className={`shrink-0 text-sm ${done ? "text-muted" : "text-accent"}`}>{done ? "Update posted ✓" : "Post today's update ›"}</span>
+              </Link>
+            );
+          })}
+        </Card>
+      ) : null}
 
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Today</h2>

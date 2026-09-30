@@ -42,8 +42,8 @@ export function LineRow({ invoiceId, line, editable }: { invoiceId: string; line
               Edit
             </button>
             <form action={removeLine.bind(null, line.id, invoiceId)}>
-              <button className="text-xs text-muted underline" title={line.kind === "walk" ? "Moves it to the next invoice" : "Delete"}>
-                {line.kind === "walk" ? "Later" : "Remove"}
+              <button className="text-xs text-muted underline" title={line.kind === "walk" || line.kind === "stay" ? "Moves it to the next invoice" : "Delete"}>
+                {line.kind === "walk" || line.kind === "stay" ? "Later" : "Remove"}
               </button>
             </form>
           </>

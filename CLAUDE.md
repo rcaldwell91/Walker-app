@@ -40,7 +40,19 @@ Phase-two features are listed (greyed, not linked) on More → Coming soon, from
 - The wrap-up is a draft on the phone (localStorage) until **Finish**, which calls `finish_walk()` (0019): one transaction for log taps, ratings, working on, photo tags and the walk. Anything that saves one user action across several tables goes in one transaction like this.
 - Quick ratings live in `src/lib/pet-scores.ts` (add a line to add a category). Park attributes in `src/lib/parks.ts`.
 - Owners see a walk's photos only once it's finished (0018); tags decide which owners (`photo_pets`, `client_can_see_photo`).
-- **"Talk it through"** (`walk/voice-actions.ts`) calls the Anthropic API server-side with `ANTHROPIC_API_KEY`; without it the button says "Needs setup". The key never goes to the browser.
+- **"Talk it through"** (`src/lib/voice-fill.ts`, called from `walk/voice-actions.ts` and `boarding/actions.ts`) calls the Anthropic API server-side with `ANTHROPIC_API_KEY`; without it the button says "Needs setup". The key never goes to the browser. Voice only fills fields that are still blank or were filled by voice.
+- The wrap-up and the boarding daily update share `src/components/report-parts.tsx` (log buttons, ratings, photo gallery, Talk it through).
+
+## Boarding
+
+- **Pages:** `/boarding` (month calendar, capacity, stays), `/boarding/new`, `/boarding/[id]` (details, daily updates, boarding details), `/boarding/[id]/update?day=`, `/boarding/[id]/summary` (pick-up and billing). Client: `/my/stays/[id]`. Reached from Schedule & hours, the client page and the pet page.
+- **Nights** are the walker's local dates `[start_day, end_day)`. Capacity is pets per night (`walkers.boarding_capacity`); time off blocks days. Over capacity or on days off, booking warns first and "Book anyway" goes through.
+- **One pet profile:** boarding answers live in `dogs.boarding` (keys in `src/lib/boarding.ts`, add a question there); emergency contact and "what I'm bringing" are on the client.
+- **Daily updates:** one per stay per day (`stay_updates`). Posting is one transaction (`post_stay_update`); owners see an update, its ratings and photos only once it's posted. Photos go to `photos` with `stay_update_id`, path `{walker}/stay-{update}/{id}.jpg`.
+- **Billing:** `end_stay()` puts the stay on the client's bill (first pet × nights, each extra pet × nights, plus any adjustment to the agreed price). Every line carries `stay_id`; removing one from a draft or voiding the invoice sends the whole stay back to unbilled (0023).
+- **Reminders** ("starts/ends tomorrow") are claimed on page load by `claim_stay_reminders()` (no cron) in `src/lib/boarding-reminders.ts`. Booking a stay for today or tomorrow counts as the start reminder.
+- **Space photos** (`walker_space_photos`, public avatars bucket) are read by the walker's own clients; the public sees them only through `public_walker_profile()` (0022).
+- Squad coverage for boarding is out of scope for now.
 
 ## Maps, geocoding, routing (Stage 4)
 

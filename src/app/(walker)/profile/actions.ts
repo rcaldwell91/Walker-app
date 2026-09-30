@@ -57,3 +57,20 @@ export async function setBackgroundCheck(path: string) {
   revalidatePath("/profile");
   return error ? { error: error.message } : {};
 }
+
+/** A photo of the walker's boarding space, already uploaded to avatars/{userId}/space-*.jpg. */
+export async function addSpacePhoto(path: string, caption: string): Promise<{ error?: string }> {
+  const { supabase, user } = await requireRole("walker", "operator");
+  if (!path.startsWith(`${user.id}/space-`)) return { error: "That upload isn't yours" };
+  const { error } = await supabase.from("walker_space_photos").insert({ walker_id: user.id, storage_path: path, caption: caption.trim().slice(0, 120) || null });
+  if (error) return { error: error.message };
+  revalidatePath("/profile");
+  return {};
+}
+
+export async function removeSpacePhoto(id: string) {
+  const { supabase, user } = await requireRole("walker", "operator");
+  const { data } = await supabase.from("walker_space_photos").delete().eq("id", id).eq("walker_id", user.id).select("storage_path").maybeSingle();
+  if (data?.storage_path) await supabase.storage.from("avatars").remove([data.storage_path]);
+  revalidatePath("/profile");
+}

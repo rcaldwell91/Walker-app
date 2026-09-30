@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { finishWalk, markPickup, sendStatus, type WrapUpPayload } from "../../actions";
 import { interpretWrapUp, type VoiceFill } from "../../voice-actions";
-import { Badge, Button, Card, ErrorText, Input, SectionTitle } from "@/components/ui";
-import { VoiceInput, useSpeechToText } from "@/components/voice-input";
+import { Button, Card, ErrorText, Input, SectionTitle } from "@/components/ui";
+import { VoiceInput } from "@/components/voice-input";
+import { LogGrid, PhotoGallery, ScoreGrid, TalkItThrough, VoiceFilledBar } from "@/components/report-parts";
 import { WalkSteps } from "@/components/walk-steps";
 import { BackBar } from "@/components/back-bar";
-import { EVENT_EMOJI, EVENT_LABELS } from "@/lib/events";
-import { PET_SCORES } from "@/lib/pet-scores";
 import { usePhotoQueue } from "@/lib/photo-queue";
 
 type Pet = { id: string; name: string; workingOn: string; own: boolean; clientId: string; clientName: string };
@@ -58,7 +57,7 @@ export function WrapUp({
   const [finishing, startFinish] = useTransition();
   const [dropping, startDrop] = useTransition();
   const [dropped, setDropped] = useState(() => new Set(clients.filter((c) => c.droppedOff).map((c) => c.id)));
-  const queue = usePhotoQueue(walkId, walkerId);
+  const queue = usePhotoQueue({ walkId }, walkerId);
 
   // Restore the draft saved on this phone, then keep saving it.
   useEffect(() => {
@@ -117,18 +116,21 @@ export function WrapUp({
         const p = { counts: { ...cur.counts }, scores: { ...cur.scores }, workingOn: cur.workingOn };
         for (const [kind, n] of Object.entries(f.counts)) {
           const key = `count:${f.id}:${kind}`;
-          if (touched.has(key) || !buttons.includes(kind)) continue;
+          // Only fill what's still blank (or was filled by voice): the walker's own taps stay.
+          if (touched.has(key) || !buttons.includes(kind) || (!marks.has(key) && (cur.counts[kind] ?? 0) !== 0)) continue;
           p.counts[kind] = n;
           marks.add(key);
         }
         for (const [cat, n] of Object.entries(f.scores)) {
           const key = `score:${f.id}:${cat}`;
-          if (touched.has(key)) continue;
+          if (touched.has(key) || (!marks.has(key) && cur.scores[cat] !== undefined)) continue;
           p.scores[cat] = n;
           marks.add(key);
         }
         const woKey = `wo:${f.id}`;
-        if (f.workingOn && !touched.has(woKey) && pets.find((x) => x.id === f.id)?.own) {
+        const before = pets.find((x) => x.id === f.id);
+        const changed = !marks.has(woKey) && cur.workingOn !== (before?.workingOn ?? "");
+        if (f.workingOn && !touched.has(woKey) && !changed && before?.own) {
           p.workingOn = f.workingOn;
           marks.add(woKey);
         }
@@ -180,24 +182,22 @@ export function WrapUp({
         <p className="text-sm text-muted">{serviceName} · Nothing is sent to owners until you tap Finish.</p>
       </div>
 
-      <TalkItThrough walkId={walkId} ready={voiceReady} onFill={applyVoice} />
+      <TalkItThrough
+        ready={voiceReady}
+        interpret={(t) => interpretWrapUp(walkId, t)}
+        example="e.g. “Rex pooped twice, peed, had water, we worked on loose leash, low energy today but happy.”"
+        emptyPrompt="Say how the walk went first."
+        fillLabel="Fill in the wrap-up"
+        onFill={applyVoice}
+      />
       {undo ? (
-        <Card className="flex items-center justify-between gap-2 border-voice" data-voice-filled={draft.filled.length}>
-          <p className="text-sm">
-            <span className="font-medium text-voice">Filled in {draft.filled.length} thing{draft.filled.length === 1 ? "" : "s"} from what you said.</span>{" "}
-            <span className="text-muted">Outlined below. Check them, then Finish.</span>
-          </p>
-          <Button
-            variant="secondary"
-            className="shrink-0 px-3 text-sm"
-            onClick={() => {
-              setDraft(undo);
-              setUndo(null);
-            }}
-          >
-            Undo
-          </Button>
-        </Card>
+        <VoiceFilledBar
+          count={draft.filled.length}
+          onUndo={() => {
+            setDraft(undo);
+            setUndo(null);
+          }}
+        />
       ) : null}
 
       {clients.length ? (
@@ -235,80 +235,26 @@ export function WrapUp({
           <section key={p.id} aria-label={p.name} data-pet-wrapup={p.name}>
             <SectionTitle>{p.name}</SectionTitle>
             <Card className="flex flex-col gap-4">
-              <div className="grid grid-cols-3 gap-2">
-                {buttons.map((b) => {
-                  const key = `count:${p.id}:${b}`;
-                  const n = st.counts[b] ?? 0;
-                  return (
-                    <div key={b} className="relative">
-                      <button
-                        type="button"
-                        onClick={() => edit(key, setPet(p.id, (s) => ({ ...s, counts: { ...s.counts, [b]: Math.min(20, (s.counts[b] ?? 0) + 1) } })))}
-                        className={`flex h-20 w-full flex-col items-center justify-center rounded-2xl border-2 text-sm font-medium active:scale-95 ${
-                          n ? "border-accent bg-accent/10" : "border-border bg-bg"
-                        } ${filled.has(key) ? "ring-2 ring-voice ring-offset-2 ring-offset-card" : ""}`}
-                        data-log={b}
-                        data-count={n}
-                      >
-                        <span className="text-2xl" aria-hidden="true">
-                          {EVENT_EMOJI[b] ?? "•"}
-                        </span>
-                        {EVENT_LABELS[b] ?? b}
-                        {n > 1 ? ` ×${n}` : ""}
-                      </button>
-                      {n ? (
-                        <button
-                          type="button"
-                          aria-label={`One less ${EVENT_LABELS[b] ?? b}`}
-                          onClick={() => edit(key, setPet(p.id, (s) => ({ ...s, counts: { ...s.counts, [b]: Math.max(0, (s.counts[b] ?? 0) - 1) } })))}
-                          className="absolute -right-1 -top-1 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-lg shadow-card"
-                        >
-                          −
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {PET_SCORES.map((sc) => {
-                  const key = `score:${p.id}:${sc.key}`;
-                  const v = st.scores[sc.key];
-                  return (
-                    <div key={sc.key} data-score={sc.key} className={filled.has(key) ? "rounded-xl ring-2 ring-voice ring-offset-2 ring-offset-card" : ""}>
-                      <p className="mb-1 flex justify-between text-sm">
-                        <span className="font-medium">{sc.label}</span>
-                        <span className="text-xs text-muted">
-                          1 {sc.low} · 5 {sc.high}
-                        </span>
-                      </p>
-                      <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label={`${p.name}: ${sc.label}`}>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            role="radio"
-                            aria-checked={v === n}
-                            onClick={() =>
-                              edit(key, setPet(p.id, (s) => {
-                                const scores = { ...s.scores };
-                                if (scores[sc.key] === n) delete scores[sc.key];
-                                else scores[sc.key] = n;
-                                return { ...s, scores };
-                              }))
-                            }
-                            className={`h-11 rounded-xl border text-sm font-medium ${v === n ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg"}`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                <p className="text-xs text-muted">All optional. Tap again to clear.</p>
-              </div>
+              <LogGrid
+                pet={p.name}
+                buttons={buttons}
+                counts={st.counts}
+                filled={(b) => filled.has(`count:${p.id}:${b}`)}
+                onChange={(b, n) => edit(`count:${p.id}:${b}`, setPet(p.id, (s) => ({ ...s, counts: { ...s.counts, [b]: n } })))}
+              />
+              <ScoreGrid
+                pet={p.name}
+                scores={st.scores}
+                filled={(c) => filled.has(`score:${p.id}:${c}`)}
+                onChange={(c, n) =>
+                  edit(`score:${p.id}:${c}`, setPet(p.id, (s) => {
+                    const scores = { ...s.scores };
+                    if (n === undefined) delete scores[c];
+                    else scores[c] = n;
+                    return { ...s, scores };
+                  }))
+                }
+              />
 
               {p.own ? (
                 <label className={`block ${filled.has(`wo:${p.id}`) ? "rounded-xl ring-2 ring-voice ring-offset-2 ring-offset-card" : ""}`}>
@@ -334,58 +280,19 @@ export function WrapUp({
       })}
 
       <SectionTitle>Photos</SectionTitle>
-      <Card className="flex flex-col gap-3">
-        {allPhotos.length ? (
-          <ul className="grid grid-cols-2 gap-3" aria-label="Walk photos">
-            {allPhotos.map((ph) => {
-              const tags = draft.tags[ph.id] ?? [];
-              return (
-                <li key={ph.id} className="flex flex-col gap-2" data-photo={ph.id}>
-                  <div className="relative aspect-square overflow-hidden rounded-xl bg-border">
-                    {ph.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={ph.url} alt="" className="h-full w-full object-cover" />
-                    ) : null}
-                    {ph.status !== "done" ? (
-                      <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-1 text-center text-xs text-white">
-                        {ph.status === "uploading" ? "Sending…" : ph.status === "queued" ? "Will send when online" : "Didn't send"}
-                      </span>
-                    ) : null}
-                  </div>
-                  {pets.length > 1 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {pets.map((p) => {
-                        const on = tags.includes(p.id);
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() =>
-                              setDraft((d) => ({
-                                ...d,
-                                tags: { ...d.tags, [ph.id]: on ? (d.tags[ph.id] ?? []).filter((x) => x !== p.id) : [...(d.tags[ph.id] ?? []), p.id] },
-                              }))
-                            }
-                            className={`min-h-11 rounded-full border px-3 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-bg"}`}
-                            data-tag={p.name}
-                          >
-                            {p.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">No photos yet.</p>
-        )}
-        {pets.length > 1 ? <p className="text-xs text-muted">Tap the pets in each photo. A photo with none tagged goes to everyone on this walk.</p> : null}
-        <PhotoButton onFiles={queue.add} />
-      </Card>
+      <PhotoGallery
+        photos={allPhotos}
+        pets={pets}
+        tags={draft.tags}
+        onToggleTag={(photoId, petId) =>
+          setDraft((d) => {
+            const cur = d.tags[photoId] ?? [];
+            return { ...d, tags: { ...d.tags, [photoId]: cur.includes(petId) ? cur.filter((x) => x !== petId) : [...cur, petId] } };
+          })
+        }
+        onFiles={queue.add}
+        groupHint="Tap the pets in each photo. A photo with none tagged goes to everyone on this walk."
+      />
 
       {notes.length ? (
         <>
@@ -428,117 +335,5 @@ export function WrapUp({
       </Button>
       <BackBar href="/home" label="Today" />
     </div>
-  );
-}
-
-function PhotoButton({ onFiles }: { onFiles: (f: FileList | null) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <input
-        ref={ref}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          onFiles(e.target.files);
-          e.target.value = "";
-        }}
-        data-add-photos-input
-      />
-      <Button type="button" variant="secondary" onClick={() => ref.current?.click()} data-add-photos>
-        Add photos
-      </Button>
-    </>
-  );
-}
-
-/**
- * The big button at the top. Talk normally; the browser turns it into text;
- * the server asks Claude to fill the wrap-up in. Without an API key it says
- * "Needs setup" and everything else works as usual.
- */
-function TalkItThrough({ walkId, ready, onFill }: { walkId: string; ready: boolean; onFill: (f: VoiceFill) => void }) {
-  const [text, setText] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [needsSetup, setNeedsSetup] = useState(!ready);
-  const [pending, start] = useTransition();
-  const textRef = useRef(text);
-  textRef.current = text;
-  const speech = useSpeechToText((t) => setText((v) => (v ? `${v.trim()} ${t}` : t)));
-
-  if (needsSetup) {
-    return (
-      <Card className="flex flex-col gap-2" data-voice="needs-setup">
-        <button type="button" disabled className="btn flex h-16 w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg text-lg font-medium opacity-60">
-          🎙️ Talk it through
-        </button>
-        <p className="flex items-center gap-2 text-sm text-muted">
-          <Badge tone="muted">Needs setup</Badge> Voice fill isn&apos;t switched on yet. Use the buttons below.
-        </p>
-      </Card>
-    );
-  }
-
-  function fill() {
-    const said = textRef.current.trim();
-    if (!said) return setMsg("Say how the walk went first.");
-    speech.stop();
-    setMsg(null);
-    start(async () => {
-      try {
-        const r = await interpretWrapUp(walkId, said);
-        if ("fill" in r) {
-          onFill(r.fill); // the transcript stays, so nothing moves under the thumb
-        } else {
-          setMsg(r.error);
-          if (r.setup) setNeedsSetup(true);
-        }
-      } catch {
-        setMsg(navigator.onLine ? "Voice fill didn't work this time. The buttons still work." : "No signal for voice fill. The buttons still work.");
-      }
-    });
-  }
-
-  return (
-    <Card className="flex flex-col gap-3" data-voice="ready">
-      <button
-        type="button"
-        onClick={speech.listening ? speech.stop : speech.start}
-        disabled={!speech.supported || pending}
-        className={`btn flex h-16 w-full items-center justify-center gap-2 rounded-xl text-lg font-medium ${
-          speech.listening ? "animate-pulse bg-warn text-warn-fg" : "bg-accent text-accent-fg"
-        }`}
-      >
-        🎙️ {speech.listening ? "Listening… tap to stop" : "Talk it through"}
-      </button>
-      <p className="text-xs text-muted">
-        {speech.blocked
-          ? "Can't use the microphone. Type the rundown below instead, or allow it in settings."
-          : speech.supported
-          ? "e.g. “Rex pooped twice, peed, had water, we worked on loose leash, low energy today but happy.”"
-          : "This browser can't listen. Type the rundown instead."}
-      </p>
-      {text || speech.interim || !speech.supported || speech.blocked ? (
-        <>
-          <textarea
-            value={text + (speech.interim ? ` ${speech.interim}` : "")}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2 text-base"
-            aria-label="What you said"
-          />
-          <Button onClick={fill} disabled={pending || !text.trim()}>
-            {pending ? "Filling in…" : "Fill in the wrap-up"}
-          </Button>
-        </>
-      ) : null}
-      {msg ? (
-        <p className="text-sm text-warn" role="status">
-          {msg}
-        </p>
-      ) : null}
-    </Card>
   );
 }

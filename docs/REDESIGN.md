@@ -20,6 +20,19 @@ Decisions made while building Part One (not in the notes above):
 - Time off lives under Schedule & hours and shows on the schedule. Boarding will reuse it.
 - Job titles keep "dog walker" (landing page, public page); pets themselves are "pets" everywhere.
 
+Decisions made while building Part Two (not in the notes above):
+
+- Capacity counts pets per night. A night is the date the pet sleeps over, so drop-off on the 28th and pick-up on the 30th is two nights (28th, 29th).
+- If no capacity is set, booking warns "You haven't set how many pets you can take" and still lets the walker book.
+- Booking a stay tells the owner straight away. If it starts today or tomorrow, that message counts as the "starts tomorrow" reminder, so the owner doesn't get two.
+- The price fills in from the rates (first pet per night, plus the extra-pet rate for each other pet) and can be changed. If it's changed, the invoice shows the difference as a "Boarding price adjustment" or "Boarding discount" line.
+- Daily updates cover drop-off day through pick-up day, one per day. An update can be edited and posted again; only the first post notifies the owner.
+- "Bill this stay" makes a draft invoice with everything unbilled for that client (walks included), like "Bill now". The walker sends it from the invoice page.
+- An early pick-up bills on the actual day. It still bills the nights booked; the walker can change the price on the invoice.
+- The owner fills in boarding details on their normal intake (an extra section per pet). The walker can fill in or correct them on the stay.
+- Photos of the walker's space show on the public page only through the public profile, never as an open list (walkers aren't world-readable).
+- Cancelling a stay takes two taps. Cancelled stays disappear for the owner.
+
 ---
 
 ## PART ONE: REDESIGN

@@ -7,17 +7,19 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
 import { ProfileForm } from "./profile-form";
 import { AvatarUpload, BackgroundCheckUpload } from "./uploads";
+import { SpacePhotos } from "./space-photos";
 import { NotificationSettings } from "@/components/notification-settings";
 
 export default async function ProfilePage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
   const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
-  const [{ data: walker }] = await Promise.all([
+  const [{ data: walker }, { data: space }] = await Promise.all([
     supabase
       .from("walkers")
       .select("handle, business_name, bio, service_area, check_in_cadence_days, suggestion_box_enabled, tips_enabled, background_check_path, background_check_verified_at")
       .eq("id", user.id)
       .single(),
+    supabase.from("walker_space_photos").select("id, storage_path, caption").eq("walker_id", user.id).order("created_at"),
   ]);
   if (!walker) return <PageTitle>Profile not found</PageTitle>;
 
@@ -42,6 +44,14 @@ export default async function ProfilePage() {
       <SectionTitle>Photo</SectionTitle>
       <Card>
         <AvatarUpload userId={user.id} current={profile?.avatar_url ?? null} name={profile?.full_name ?? ""} />
+      </Card>
+
+      <SectionTitle>Your boarding space</SectionTitle>
+      <Card>
+        <SpacePhotos
+          userId={user.id}
+          photos={(space ?? []).map((s) => ({ id: s.id, caption: s.caption, url: supabase.storage.from("avatars").getPublicUrl(s.storage_path).data.publicUrl }))}
+        />
       </Card>
 
       <SectionTitle>Profile</SectionTitle>

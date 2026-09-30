@@ -33,6 +33,11 @@ export default async function MyMorePage() {
     supabase.from("invoices").select(INVOICE_FIELDS).order("created_at", { ascending: false }).limit(50),
   ]);
   const invoices = summarize(invoiceRows ?? [], dateKey(new Date(), tz));
+  const { data: stays } = await supabase
+    .from("boarding_stays")
+    .select("id, start_day, end_day, nights, status, stay_pets(dog:dogs(name))")
+    .order("start_day", { ascending: false })
+    .limit(20);
 
   const walkers = (rows ?? []).map((r) => {
     const w = Array.isArray(r.walker) ? r.walker[0] : r.walker;
@@ -52,6 +57,27 @@ export default async function MyMorePage() {
           Update your details and pets
         </LinkButton>
       </Card>
+
+      {stays?.length ? (
+        <>
+          <h2 id="stays" className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Boarding stays</h2>
+          <ul className="mb-6 flex flex-col divide-y divide-border rounded-2xl border border-border bg-card">
+            {stays.map((st) => (
+              <li key={st.id}>
+                <Link href={`/my/stays/${st.id}`} className="flex min-h-14 items-center justify-between px-4 py-3 text-sm" data-client-stay={st.id}>
+                  <span>
+                    {(st.stay_pets ?? []).map((sp) => (Array.isArray(sp.dog) ? sp.dog[0] : sp.dog)?.name).filter(Boolean).join(" & ")}
+                    <span className="block text-xs text-muted">
+                      {fmtDateKey(st.start_day)} – {fmtDateKey(st.end_day)} · {st.nights} night{st.nights === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  <span className="text-muted">{st.status === "done" ? "Picked up" : "Booked"} ›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       <h2 id="invoices" className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Invoices</h2>
       {invoices.length ? (
