@@ -7,19 +7,22 @@ import { addDays, dateKey, fmtDateKey, isDateKey, mondayOf } from "@/lib/time";
 import { fetchBookingsForRange, occurrencesBetween } from "@/lib/schedule";
 import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
 import { CoverBadge, CoveringCard } from "../cover-cards";
+import { BackBar } from "@/components/back-bar";
 
 export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
-  const { supabase } = await requireRole("walker", "operator");
+  const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const { week } = await searchParams;
   const today = dateKey(new Date(), tz);
   const monday = mondayOf(isDateKey(week) ? week : today);
   const nextMonday = addDays(monday, 7);
 
-  const [{ bookings, exceptions }, coverage] = await Promise.all([
+  const [{ bookings, exceptions }, coverage, { data: timeOff }] = await Promise.all([
     fetchBookingsForRange(supabase, monday, nextMonday, tz),
     fetchMyCoverage(supabase),
+    supabase.from("walker_time_off").select("starts_on, ends_on, note").eq("walker_id", user.id).lte("starts_on", addDays(monday, 6)).gte("ends_on", monday),
   ]);
+  const offOn = (day: string) => (timeOff ?? []).find((t) => t.starts_on <= day && t.ends_on >= day);
   const coveringOn = (day: string) =>
     coverage.filter((r) => r.incoming && r.status === "accepted" && dateKey(new Date(r.starts_at), tz) === day);
   const occurrences = occurrencesBetween(bookings, monday, nextMonday, tz, exceptions);
@@ -27,14 +30,9 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <PageTitle sub={`${fmtDateKey(monday, { month: "short", day: "numeric" })} – ${fmtDateKey(addDays(monday, 6), { month: "short", day: "numeric" })}`}>
-          Schedule
-        </PageTitle>
-        <LinkButton href="/schedule/new" variant="secondary">
-          + Add
-        </LinkButton>
-      </div>
+      <PageTitle sub={`${fmtDateKey(monday, { month: "short", day: "numeric" })} – ${fmtDateKey(addDays(monday, 6), { month: "short", day: "numeric" })}`}>
+        Bookings
+      </PageTitle>
 
       <nav className="mb-4 flex gap-2">
         <LinkButton href={`/schedule?week=${addDays(monday, -7)}`} variant="secondary" className="flex-1" aria-label="Previous week">
@@ -58,8 +56,9 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                 <h2 className={`text-sm font-medium uppercase tracking-wide ${day === today ? "text-accent" : "text-muted"}`}>
                   {fmtDateKey(day)}
                   {day === today ? " · Today" : ""}
+                  {offOn(day) ? <span className="ml-2 normal-case text-warn" data-off-day={day}>· Time off</span> : null}
                 </h2>
-                <Link href={`/schedule/new?date=${day}`} className="text-sm text-accent" aria-label={`Add a booking on ${fmtDateKey(day)}`}>
+                <Link href={`/schedule/new?date=${day}`} className="flex min-h-11 items-center px-2 text-sm text-accent" aria-label={`Add a booking on ${fmtDateKey(day)}`}>
                   + Add
                 </Link>
               </div>
@@ -104,6 +103,11 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           );
         })}
       </ol>
+
+      <LinkButton href="/schedule/new" className="mt-6 w-full">
+        Add a booking
+      </LinkButton>
+      <BackBar href="/hours" label="Schedule & hours" />
     </>
   );
 }

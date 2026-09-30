@@ -4,6 +4,7 @@ import { getTimeZone } from "@/lib/timezone";
 import { dateKey, isDateKey } from "@/lib/time";
 import { BookingForm } from "../booking-form";
 import { bookingOptions } from "../options";
+import { BackBar } from "@/components/back-bar";
 
 export default async function NewBookingPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const { supabase, user } = await requireRole("walker", "operator");
@@ -24,6 +25,7 @@ export default async function NewBookingPage({ searchParams }: { searchParams: P
           initial={{ date: isDateKey(date) ? date : dateKey(new Date(), tz), time: "09:00" }}
         />
       )}
+      <BackBar href={"/schedule"} label={"Bookings"} />
     </>
   );
 }

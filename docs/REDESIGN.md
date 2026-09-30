@@ -8,6 +8,18 @@ Decisions that are deliberately **later**, not now:
 - **Squad coverage for boarding** is out of scope. Whether (and how) a squad member can cover a boarding stay is a later decision.
 - **The "Talk it through" voice wrap-up needs an Anthropic API key**, which doesn't exist yet. The button shows "Needs setup" until `ANTHROPIC_API_KEY` is set on the server.
 
+Decisions made while building Part One (not in the notes above):
+
+- The back button sits bottom left, just above the tabs (thumb reach), and always goes to the page's parent.
+- The five tabs are Today · Pets · Walk · Map · More. "Pets" opens Pets & clients.
+- "Dropped off" moved to the wrap-up (drop-offs happen after the walk; the walking screen stays empty). Incident reports are linked from the wrap-up.
+- Quick notes during the walk are saved straight away and appear in the wrap-up, where one tap adds them to the owner summary.
+- Owners see a walk's photos once the walker taps Finish, so tags are final first. A photo with no pets tagged goes to everyone on the walk.
+- "Talk it through" fills only what the walker hasn't already set, outlines what it filled, and has Undo. The walker's own typing is never replaced.
+- "Where they're at" is gone everywhere (wrap-up, pet page, owner view); the data stays in the database.
+- Time off lives under Schedule & hours and shows on the schedule. Boarding will reuse it.
+- Job titles keep "dog walker" (landing page, public page); pets themselves are "pets" everywhere.
+
 ---
 
 ## PART ONE: REDESIGN

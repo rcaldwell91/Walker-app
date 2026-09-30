@@ -27,9 +27,6 @@ export function DogEditForm({ dog }: { dog: Dog }) {
         <Field label="Working on">
           <Input name="working_on" defaultValue={dog.working_on} placeholder="e.g. wait and stay" />
         </Field>
-        <Field label="Where they're at" hint="Shows at every pickup.">
-          <VoiceInput name="progress_summary" defaultValue={dog.progress_summary} rows={2} />
-        </Field>
         {dog.quirks ? <p className="text-sm text-warn">{dog.quirks}</p> : null}
         {more ? (
           <>

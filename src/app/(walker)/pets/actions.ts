@@ -13,10 +13,10 @@ export async function updateDog(dogId: string, _: ActionState, form: FormData): 
   for (const f of fields) {
     if (form.has(f)) payload[f] = String(form.get(f)).trim() || (f === "working_on" || f === "progress_summary" || f === "name" ? "" : null);
   }
-  if (payload.name === "") return { error: "Dog needs a name" };
+  if (payload.name === "") return { error: "Your pet needs a name" };
   const { error } = await supabase.from("dogs").update(payload).eq("id", dogId);
   if (error) return { error: error.message };
-  revalidatePath(`/dogs/${dogId}`);
+  revalidatePath(`/pets/${dogId}`);
   return { ok: true };
 }
 
@@ -38,9 +38,9 @@ export async function assignHomework(dogId: string, _: ActionState, form: FormDa
       kind: "homework",
       title: `New homework for ${dog.name}`,
       body: title,
-      url: `/my/dogs/${dogId}`,
+      url: `/my/pets/${dogId}`,
     });
   }
-  revalidatePath(`/dogs/${dogId}`);
+  revalidatePath(`/pets/${dogId}`);
   return { ok: true };
 }

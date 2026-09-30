@@ -10,13 +10,13 @@ export function AddDogForm({ clientId }: { clientId: string }) {
   if (!open) {
     return (
       <Button type="button" variant="secondary" className="w-full" onClick={() => setOpen(true)}>
-        + Add a dog
+        + Add a pet
       </Button>
     );
   }
   return (
     <form action={action} className="flex gap-2">
-      <Input name="name" placeholder="Dog's name" autoFocus required />
+      <Input name="name" placeholder="Pet's name" autoFocus required />
       <Button type="submit" disabled={pending}>
         Add
       </Button>

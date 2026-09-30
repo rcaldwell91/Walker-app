@@ -61,7 +61,7 @@ export function IntakeForm({
 
       {dogs.map((d, i) => (
         <Card key={d.id ?? i} className="flex flex-col gap-4">
-          <h2 className="font-medium">{d.name || `Dog ${i + 1}`}</h2>
+          <h2 className="font-medium">{d.name || `Pet ${i + 1}`}</h2>
           {d.id ? <input type="hidden" name={`dog[${i}][id]`} value={d.id} /> : null}
           <Field label="Name">
             <Input name={`dog[${i}][name]`} defaultValue={d.name} required />
@@ -105,7 +105,7 @@ export function IntakeForm({
       ))}
 
       <Button type="button" variant="secondary" onClick={() => setDogs([...dogs, { name: "" }])}>
-        + Another dog
+        + Another pet
       </Button>
 
       <ErrorText>{state?.error}</ErrorText>

@@ -9,11 +9,15 @@ import { INVOICE_FIELDS, statusLabel, summarize } from "@/lib/billing";
 import { getTimeZone } from "@/lib/timezone";
 import { SuggestionForm } from "../relationship-forms";
 import { NotificationSettings } from "@/components/notification-settings";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
+import { cookies } from "next/headers";
 import { BackupWalkerList, type SquadChoice } from "../backup-walkers";
 
 export default async function MyMorePage() {
   const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
+  const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
   const [{ data: rows }, { data: checkIns }, { data: choices }, { data: invoiceRows }] = await Promise.all([
     supabase
       .from("clients")
@@ -45,7 +49,7 @@ export default async function MyMorePage() {
         <p className="font-medium">{profile?.full_name}</p>
         <p className="text-muted">{user.email}</p>
         <LinkButton href="/my/intake" variant="secondary" className="mt-3 w-full">
-          Update your details and dogs
+          Update your details and pets
         </LinkButton>
       </Card>
 
@@ -123,6 +127,9 @@ export default async function MyMorePage() {
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Notifications</h2>
       <NotificationSettings role="client" off={profile?.notify_off ?? []} />
+
+      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Appearance</h2>
+      <ThemeToggle initial={isThemeChoice(themeCookie) ? themeCookie : "system"} />
 
       <form action={logout} className="mt-8">
         <button className="text-sm text-muted underline">Log out</button>

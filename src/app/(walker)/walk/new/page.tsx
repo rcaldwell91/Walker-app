@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { Empty, PageTitle } from "@/components/ui";
 import { StartWalkForm } from "./start-walk-form";
+import { WalkSteps } from "@/components/walk-steps";
 
-export default async function NewWalkPage({ searchParams }: { searchParams: Promise<{ dogs?: string }> }) {
-  const { dogs: preselect } = await searchParams;
+export default async function NewWalkPage({ searchParams }: { searchParams: Promise<{ dogs?: string; park?: string }> }) {
+  const { dogs: preselect, park } = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
 
   const { data: active } = await supabase.from("walks").select("id").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle();
@@ -19,7 +20,7 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
       .in("status", ["active", "invited"])
       .order("name"),
     supabase.from("service_types").select("id, name, category, walker_id").order("sort_order"),
-    supabase.from("trails").select("id, name, walker_id, lat, lng").order("name"),
+    supabase.from("trails").select("id, name, lat, lng, features").order("name"),
   ]);
 
   const dogs = (clients ?? []).flatMap((c) =>
@@ -33,7 +34,7 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
     return (
       <>
         <PageTitle>Start a walk</PageTitle>
-        <Empty>Once a client&apos;s dogs are on file, you can start walks here.</Empty>
+        <Empty>Once a client&apos;s pets are on file, you can start walks here.</Empty>
       </>
     );
   }
@@ -43,14 +44,15 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageTitle sub="Tap the dogs you're picking up.">Start a walk</PageTitle>
+      <WalkSteps current={1} />
+      <PageTitle sub="Tap the pets you're picking up, or plan it on the Map tab.">Start a walk</PageTitle>
       <StartWalkForm
         initialSelected={(preselect ?? "").split(",").filter((id) => dogs.some((d) => d.id === id))}
         dogs={dogs}
         stops={stops}
         services={svc}
-        trails={trails ?? []}
-        ownTrailIds={(trails ?? []).filter((t) => t.walker_id === user.id).map((t) => t.id)}
+        parks={(trails ?? []).map((t) => ({ ...t, features: t.features ?? [] }))}
+        initialPark={(trails ?? []).some((t) => t.id === park) ? park! : ""}
       />
     </>
   );

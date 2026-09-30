@@ -1,18 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #fafaf7;
+  color-scheme: light;
+  --bg: #f6f4ee;
   --fg: #1c1b18;
-  --muted: #6b6960;
+  --muted: #5f5d55;
   --card: #ffffff;
-  --border: #e6e3da;
-  --accent: #2f7d5b;
+  --border: #e3dfd4;
+  --accent: #2a7352;
   --accent-fg: #ffffff;
-  --warn: #b3541e;
+  --warn: #a8481a;
+  --warn-fg: #ffffff;
+  --voice: #5b4fc4;
+  --shadow: 0 1px 2px rgb(28 27 24 / 0.06), 0 1px 1px rgb(28 27 24 / 0.04);
 }
 
+/* Dark: the phone's setting by default; a choice in Profile & account overrides it
+   (data-theme on <html>, from the "theme" cookie). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #14130f;
     --fg: #f1efe8;
     --muted: #a09d92;
@@ -21,7 +28,24 @@
     --accent: #4fb586;
     --accent-fg: #0d1a14;
     --warn: #e0803b;
+    --warn-fg: #1f0f04;
+    --voice: #a59bff;
+    --shadow: none;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14130f;
+  --fg: #f1efe8;
+  --muted: #a09d92;
+  --card: #1e1d18;
+  --border: #2d2b24;
+  --accent: #4fb586;
+  --accent-fg: #0d1a14;
+  --warn: #e0803b;
+  --warn-fg: #1f0f04;
+  --voice: #a59bff;
+  --shadow: none;
 }
 
 @theme inline {
@@ -33,10 +57,15 @@
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-warn: var(--warn);
+  --color-warn-fg: var(--warn-fg);
+  /* Only for "filled in from voice". */
+  --color-voice: var(--voice);
+  --shadow-card: var(--shadow);
 }
 
 html,
 body {
+  accent-color: var(--accent);
   background: var(--bg);
   color: var(--fg);
   -webkit-tap-highlight-color: transparent;
@@ -49,4 +78,15 @@ input,
 select,
 textarea {
   min-height: 44px;
+}
+
+/* Leaflet's controls follow the theme. */
+.leaflet-container {
+  background: var(--border);
+  font: inherit;
+}
+.leaflet-bar a,
+.leaflet-control-attribution {
+  background: var(--card) !important;
+  color: var(--fg) !important;
 }

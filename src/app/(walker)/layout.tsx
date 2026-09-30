@@ -29,7 +29,7 @@ export default async function WalkerLayout({ children }: { children: React.React
   return (
     <TimeZoneProvider tz={tz}>
       <AppSetup platform={platform} showGuide={showGuide} />
-      <div className="mx-auto max-w-md px-4 pb-24 pt-6">
+      <div className="mx-auto max-w-md px-4 pb-40 pt-6">
         {me?.status === "paused" ? (
           <p className="mb-4 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn" data-paused>
             Your account is paused, so your public page is hidden. Everything else works as usual.

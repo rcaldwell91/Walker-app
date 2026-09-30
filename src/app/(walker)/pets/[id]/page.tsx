@@ -6,6 +6,7 @@ import { Card, Empty, PageTitle } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { DogEditForm } from "./dog-edit-form";
 import { HomeworkForm } from "./homework-form";
+import { BackBar } from "@/components/back-bar";
 
 export default async function DogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -82,6 +83,7 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
           </ul>
         </>
       ) : null}
+      <BackBar href={client ? `/clients/${client.id}` : "/clients"} label={client?.name ?? "Pets & clients"} />
     </>
   );
 }

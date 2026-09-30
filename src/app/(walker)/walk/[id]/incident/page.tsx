@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { PageTitle } from "@/components/ui";
 import { IncidentForm } from "@/components/incident-form";
+import { BackBar } from "@/components/back-bar";
 
 export default async function WalkIncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -10,7 +11,7 @@ export default async function WalkIncidentPage({ params }: { params: Promise<{ i
     .from("walks")
     .select("id, walk_dogs(dog:dogs(id, name))")
     .eq("id", id)
-    .eq("walker_id", user.id) // someone else's walk with your dogs: see /report/[id]
+    .eq("walker_id", user.id) // someone else's walk with your pets: see /report/[id]
     .maybeSingle();
   if (!walk) notFound();
   const dogs = (walk.walk_dogs ?? []).map((wd) => (Array.isArray(wd.dog) ? wd.dog[0] : wd.dog)!).filter(Boolean);
@@ -18,6 +19,7 @@ export default async function WalkIncidentPage({ params }: { params: Promise<{ i
     <>
       <PageTitle sub="Quick and factual. You can add more later.">Incident report</PageTitle>
       <IncidentForm walkId={walk.id} dogs={dogs} />
+      <BackBar href={`/walk/${walk.id}`} label="Back to the walk" />
     </>
   );
 }

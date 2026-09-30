@@ -5,6 +5,7 @@ import { Card, LinkButton, PageTitle } from "@/components/ui";
 import { cents, fmtDuration, fmtTime } from "@/lib/format";
 import { EVENT_LABELS } from "@/lib/events";
 import { fmtHours } from "@/lib/hours";
+import { ClearDraft } from "@/components/clear-draft";
 
 export default async function WalkDonePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,12 +58,10 @@ export default async function WalkDonePage({ params }: { params: Promise<{ id: s
         </Card>
       ) : null}
       <p className="mb-4 text-sm text-muted">Owners can see this report now.</p>
-      <div className="flex flex-col gap-2">
-        <LinkButton href={`/walk/${walk.id}/photos`} variant="secondary">
-          Add photos
-        </LinkButton>
-        <LinkButton href="/home">Back to today</LinkButton>
-      </div>
+      <LinkButton href="/home" className="w-full">
+        Back to today
+      </LinkButton>
+      <ClearDraft storageKey={`wrapup:${walk.id}`} />
     </>
   );
 }

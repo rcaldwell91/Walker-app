@@ -1,4 +1,5 @@
 import { PageTitle, Card, LinkButton } from "@/components/ui";
+import { BackBar } from "@/components/back-bar";
 
 export default function Page() {
   return (
@@ -11,6 +12,7 @@ export default function Page() {
       <LinkButton href="/money" variant="secondary" className="w-full">
         Billing your clients → Money
       </LinkButton>
+      <BackBar href={"/profile"} label={"Profile & account"} />
     </>
   );
 }

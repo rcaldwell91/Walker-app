@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/session";
 import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
+import { BackBar } from "@/components/back-bar";
 
 const SEVERITY = {
   minor: "border-border",
@@ -39,7 +40,7 @@ export default async function IncidentsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium">
                       {dog ? (
-                        <Link href={`/dogs/${dog.id}`} className="text-accent">
+                        <Link href={`/pets/${dog.id}`} className="text-accent">
                           {dog.name}
                         </Link>
                       ) : (
@@ -73,6 +74,7 @@ export default async function IncidentsPage() {
       <LinkButton href="/walk/new" variant="ghost" className="mt-4 w-full">
         Start a walk
       </LinkButton>
+      <BackBar href={"/clients"} label={"Pets & clients"} />
     </>
   );
 }

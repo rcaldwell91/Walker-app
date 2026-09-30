@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
@@ -7,6 +6,7 @@ import { cents, fmtDate } from "@/lib/format";
 import { METHOD_LABEL, statusLabel, summarize } from "@/lib/billing";
 import { Button, Card, ErrorText, PageTitle } from "@/components/ui";
 import { sendInvoice } from "../../actions";
+import { BackBar } from "@/components/back-bar";
 import { AddLineForm, LineRow, PaymentForm, VoidButton } from "./invoice-forms";
 
 const one = <T,>(x: T | T[] | null | undefined) => (Array.isArray(x) ? x[0] : x) ?? null;
@@ -40,7 +40,6 @@ export default async function WalkerInvoicePage({
 
   return (
     <>
-      <Link href="/money" className="mb-2 inline-block text-sm text-accent">← Money</Link>
       <PageTitle
         sub={
           <>
@@ -134,6 +133,7 @@ export default async function WalkerInvoicePage({
           {!payments.length ? <VoidButton invoiceId={inv.id} /> : null}
         </>
       ) : null}
+      <BackBar href="/money" label="Money" />
     </>
   );
 }

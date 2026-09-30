@@ -3,27 +3,28 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { startWalk } from "../actions";
 import { Button, Card, ErrorText, Field, Select } from "@/components/ui";
-import { closest, distanceM, etaMinutes, hasCoords, miles, nearestNeighborOrder, type LatLng } from "@/lib/geo/distance";
+import { distanceM, etaMinutes, hasCoords, miles, nearestNeighborOrder, type LatLng } from "@/lib/geo/distance";
+import { ParkPicker } from "@/components/park-picker";
+import type { Park } from "@/lib/parks";
 import { PickupOrder, type PickupRow } from "./pickup-order";
 
 type Dog = { id: string; name: string; working_on: string; clientId: string; clientName: string; color: string | null; group: string | null; covering?: boolean };
 type Stop = { id: string; name: string; color: string | null; lat: number | null; lng: number | null };
-type Trail = { id: string; name: string; lat: number; lng: number };
 
 export function StartWalkForm({
   initialSelected = [],
   dogs,
   stops,
   services,
-  trails,
-  ownTrailIds,
+  parks,
+  initialPark = "",
 }: {
   initialSelected?: string[];
   dogs: Dog[];
   stops: Stop[];
   services: { id: string; name: string; category: string }[];
-  trails: Trail[];
-  ownTrailIds: string[];
+  parks: Park[];
+  initialPark?: string;
 }) {
   const [state, action, pending] = useActionState(startWalk, undefined);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
@@ -31,7 +32,7 @@ export function StartWalkForm({
   const [locating, setLocating] = useState(true);
   const [manual, setManual] = useState<{ key: string; order: string[] } | null>(null);
   const [reordering, setReordering] = useState(false);
-  const [trailId, setTrailId] = useState("");
+  const [trailId, setTrailId] = useState(initialPark);
 
   // Where the walker is right now, for the first leg of the pickup route.
   useEffect(() => {
@@ -75,10 +76,8 @@ export function StartWalkForm({
     rows.push({ id, name: `${names.join(", ")} · ${s.name}`, color: s.color, detail });
   }
 
-  // Up to 3 of the walker's own trails nearest the last pickup.
+  // Park suggestions start from the last pickup.
   const lastStop = [...order].reverse().map((id) => stopById.get(id)!).find((s) => s && hasCoords(s));
-  const own = new Set(ownTrailIds);
-  const nearby = lastStop && hasCoords(lastStop) ? closest(lastStop, trails.filter((t) => own.has(t.id)), 3) : [];
 
   function toggle(id: string) {
     const next = new Set(selected);
@@ -191,39 +190,14 @@ export function StartWalkForm({
       </Field>
 
       <div>
-        <Field label="Trail" hint="Optional. Add your usual spots on the Map tab.">
-          <Select name="trail_id" value={trailId} onChange={(e) => setTrailId(e.target.value)}>
-            <option value="">Not sure yet</option>
-            {trails.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {nearby.length ? (
-          <div className="mt-2">
-            <p className="mb-1 text-xs text-muted">Near your last pickup</p>
-            <div className="flex flex-wrap gap-2">
-              {nearby.map(({ item: t, d }) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTrailId(t.id)}
-                  aria-pressed={trailId === t.id}
-                  className={`rounded-full border px-3 text-sm ${trailId === t.id ? "border-accent bg-accent/10" : "border-border bg-card"}`}
-                >
-                  {t.name} · {miles(d).toFixed(1)} mi
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <p className="mb-2 text-sm font-medium">Park</p>
+        <input type="hidden" name="trail_id" value={trailId} />
+        <ParkPicker parks={parks} from={lastStop && hasCoords(lastStop) ? { lat: lastStop.lat, lng: lastStop.lng } : here} value={trailId} onChange={setTrailId} />
       </div>
 
       <ErrorText>{state?.error}</ErrorText>
       <Button type="submit" disabled={pending || selected.size === 0} className="h-14 text-lg">
-        {selected.size ? `Start with ${selected.size} dog${selected.size > 1 ? "s" : ""}` : "Pick your dogs"}
+        {selected.size ? `Start with ${selected.size} pet${selected.size > 1 ? "s" : ""}` : "Pick your pets"}
       </Button>
     </form>
   );

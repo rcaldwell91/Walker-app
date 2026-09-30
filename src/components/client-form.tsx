@@ -35,7 +35,7 @@ export function ClientForm({
         <Input name="name" defaultValue={initial.name ?? ""} required autoFocus />
       </Field>
       {showDog ? (
-        <Field label="Dog's name" hint="You can add more dogs after.">
+        <Field label="Pet's name" hint="You can add more pets after.">
           <Input name="dog_name" />
         </Field>
       ) : null}

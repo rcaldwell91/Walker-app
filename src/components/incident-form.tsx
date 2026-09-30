@@ -9,9 +9,9 @@ export function IncidentForm({ walkId, dogs }: { walkId: string | null; dogs: { 
   const [state, action, pending] = useActionState(fileIncident.bind(null, walkId), undefined);
   return (
     <form action={action} className="flex flex-col gap-4">
-      <Field label="Dog">
+      <Field label="Pet">
         <Select name="dog_id" defaultValue={dogs.length === 1 ? dogs[0].id : ""}>
-          <option value="">Not about one dog</option>
+          <option value="">Not about one pet</option>
           {dogs.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}

@@ -4,6 +4,7 @@ import { Empty, PageTitle } from "@/components/ui";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { MessageForm } from "./message-form";
+import { BackBar } from "@/components/back-bar";
 
 export default async function ClientMessagesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -63,6 +64,7 @@ export default async function ClientMessagesPage({ params }: { params: Promise<{
         </ol>
       )}
       <MessageForm clientId={client.id} />
+      <BackBar href={`/clients/${client.id}`} label={client.name} />
     </>
   );
 }

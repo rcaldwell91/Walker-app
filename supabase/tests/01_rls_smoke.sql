@@ -540,6 +540,166 @@ do $$ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Tagged photos and pet ratings (0017). Walker A's second client F shares a
+-- group walk with client C. A photo tagged with one client's pet is theirs only;
+-- an untagged photo is the whole group's.
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000f2', 'f@x.test', '{"role":"client","full_name":"Client F"}');
+insert into clients (id, walker_id, profile_id, name, status) values
+  ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000f2', 'Biscuit''s owner', 'active');
+insert into dogs (id, client_id, walker_id, name) values
+  ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000a', 'Biscuit');
+insert into walks (id, walker_id, service_type_id, status, started_at)
+  select '30000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000000a', id, 'in_progress', now() from service_types where key = 'group_walk';
+insert into walk_dogs (walk_id, dog_id) values
+  ('30000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-000000000001'),
+  ('30000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-000000000004');
+insert into storage.objects (bucket_id, name) values
+  ('photos', 'a/f1/dexter-only.jpg'), ('photos', 'a/f1/biscuit-only.jpg'), ('photos', 'a/f1/group.jpg'), ('photos', 'a/f1/both.jpg');
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000a');
+insert into photos (id, walker_id, walk_id, storage_path) values
+  ('70000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', 'a/f1/dexter-only.jpg'),
+  ('70000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', 'a/f1/biscuit-only.jpg'),
+  ('70000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', 'a/f1/group.jpg'),
+  ('70000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', 'a/f1/both.jpg');
+insert into photo_pets (photo_id, dog_id) values
+  ('70000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001'),
+  ('70000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004'),
+  ('70000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000001'),
+  ('70000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004');
+insert into pet_scores (walker_id, walk_id, dog_id, category, score) values
+  ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-000000000001', 'energy', 2),
+  ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-000000000004', 'energy', 5);
+do $$ begin
+  -- Tags and scores only for pets on this walk.
+  begin
+    insert into photo_pets (photo_id, dog_id) values ('70000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000003');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Tagged a photo with a pet who wasn''t on the walk'; end if;
+  end;
+  begin
+    insert into pet_scores (walker_id, walk_id, dog_id, category, score)
+      values ('00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f1', '20000000-0000-0000-0000-000000000002', 'mood', 3);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Scored another walker''s pet'; end if;
+  end;
+end $$;
+-- Until the walk is finished, owners see none of its photos (tags aren't final yet).
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if exists (select 1 from photos where walk_id = '30000000-0000-0000-0000-0000000000f1')
+     or exists (select 1 from storage.objects where name like 'a/f1/%') then
+    raise exception 'Client sees photos of a walk that isn''t finished';
+  end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+update walks set status = 'done', ended_at = now() where id = '30000000-0000-0000-0000-0000000000f1';
+select _as('00000000-0000-0000-0000-00000000000c');
+do $$ begin
+  if (select string_agg(storage_path, ',' order by storage_path) from photos where walk_id = '30000000-0000-0000-0000-0000000000f1')
+     <> 'a/f1/both.jpg,a/f1/dexter-only.jpg,a/f1/group.jpg' then
+    raise exception 'Client C should see Dexter''s, both-tagged and group photos only, saw %',
+      (select string_agg(storage_path, ',' order by storage_path) from photos where walk_id = '30000000-0000-0000-0000-0000000000f1');
+  end if;
+  if exists (select 1 from storage.objects where name = 'a/f1/biscuit-only.jpg') then raise exception 'Client C can open Biscuit''s photo file'; end if;
+  if not exists (select 1 from storage.objects where name = 'a/f1/group.jpg') then raise exception 'Client C can''t open the group photo file'; end if;
+  if (select count(*) from pet_scores) <> 1 or (select dog_id from pet_scores) <> '20000000-0000-0000-0000-000000000001' then
+    raise exception 'Client C should see only Dexter''s score';
+  end if;
+  if exists (select 1 from photo_pets where dog_id = '20000000-0000-0000-0000-000000000004') then raise exception 'Client C sees Biscuit''s tags'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-0000000000f2');
+do $$ begin
+  if (select string_agg(storage_path, ',' order by storage_path) from photos where walk_id = '30000000-0000-0000-0000-0000000000f1')
+     <> 'a/f1/biscuit-only.jpg,a/f1/both.jpg,a/f1/group.jpg' then
+    raise exception 'Client F should see Biscuit''s, both-tagged and group photos only';
+  end if;
+  if exists (select 1 from storage.objects where name = 'a/f1/dexter-only.jpg') then raise exception 'Client F can open Dexter''s photo file'; end if;
+  if (select count(*) from pet_scores) <> 1 then raise exception 'Client F should see only Biscuit''s score'; end if;
+  begin
+    insert into photo_pets (photo_id, dog_id) values ('70000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000004');
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Client re-tagged a photo to see it'; end if;
+  end;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from pet_scores) or exists (select 1 from photo_pets) then raise exception 'Unrelated walker sees scores or tags'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if (select count(*) from photos where walk_id = '30000000-0000-0000-0000-0000000000f1') <> 4 then raise exception 'Walker should see all their walk photos'; end if;
+  if (select count(*) from walker_time_off) <> 0 then raise exception 'setup'; end if;
+end $$;
+insert into walker_time_off (walker_id, starts_on, ends_on) values ('00000000-0000-0000-0000-00000000000a', current_date + 3, current_date + 5);
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from walker_time_off) then raise exception 'Walker B sees A''s time off'; end if;
+end $$;
+
+-- Finishing a walk is all or nothing (0019).
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into walks (id, walker_id, service_type_id, status, started_at)
+  select '30000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-00000000000a', id, 'in_progress', now() - interval '1 hour' from service_types where key = 'group_walk';
+insert into walk_dogs (walk_id, dog_id) values ('30000000-0000-0000-0000-0000000000f2', '20000000-0000-0000-0000-000000000001');
+insert into photos (id, walker_id, walk_id, storage_path) values
+  ('70000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-0000000000f2', 'a/f2/x.jpg');
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  begin
+    perform finish_walk('30000000-0000-0000-0000-0000000000f2', '[]', '[]', '[]', '[]', 'hijack', null, 0, 0, now());
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker B finished walker A''s walk'; end if;
+  end;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  -- A bad tag (Anubis wasn't on this walk) fails the whole thing: no log, not done.
+  begin
+    perform finish_walk('30000000-0000-0000-0000-0000000000f2',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"poop"}]',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","category":"mood","score":4}]', '[]',
+      '[{"photo_id":"70000000-0000-0000-0000-000000000005","dog_ids":["20000000-0000-0000-0000-000000000002"]}]',
+      'x', null, 5, 30, now());
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'finish_walk accepted a tag for a pet not on the walk'; end if;
+  end;
+  if exists (select 1 from walk_events where walk_id = '30000000-0000-0000-0000-0000000000f2')
+     or exists (select 1 from pet_scores where walk_id = '30000000-0000-0000-0000-0000000000f2')
+     or (select status from walks where id = '30000000-0000-0000-0000-0000000000f2') <> 'in_progress' then
+    raise exception 'A failed finish left part of the wrap-up saved';
+  end if;
+  if finish_walk('30000000-0000-0000-0000-0000000000f2',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"poop"},{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"poop"}]',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","category":"mood","score":4}]',
+      '[{"dog_id":"20000000-0000-0000-0000-000000000001","text":"heel"}]',
+      '[{"photo_id":"70000000-0000-0000-0000-000000000005","dog_ids":["20000000-0000-0000-0000-000000000001"]}]',
+      'Good walk', 1200, 5, 30, now()) <> 'done' then
+    raise exception 'finish_walk should finish';
+  end if;
+  if finish_walk('30000000-0000-0000-0000-0000000000f2', '[{"dog_id":"20000000-0000-0000-0000-000000000001","kind":"poop"}]', '[]', '[]', '[]', 'again', null, 0, 0, now()) <> 'already done' then
+    raise exception 'A second Finish should do nothing';
+  end if;
+  if (select count(*) from walk_events where walk_id = '30000000-0000-0000-0000-0000000000f2') <> 2
+     or (select summary from walks where id = '30000000-0000-0000-0000-0000000000f2') <> 'Good walk'
+     or (select working_on from walk_dogs where walk_id = '30000000-0000-0000-0000-0000000000f2') <> 'heel'
+     or (select count(*) from photo_pets where photo_id = '70000000-0000-0000-0000-000000000005') <> 1 then
+    raise exception 'finish_walk saved the wrong things';
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- Suspended walkers are locked out in the database (0016); paused ones aren't.
 -- ---------------------------------------------------------------------------
 reset role;

@@ -5,6 +5,7 @@ import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { HomeworkCard } from "@/components/homework-card";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
+import { BackBar } from "@/components/back-bar";
 
 export default async function MyDogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +13,7 @@ export default async function MyDogPage({ params }: { params: Promise<{ id: stri
   const tz = await getTimeZone();
   const { data: dog } = await supabase
     .from("dogs")
-    .select("id, name, breed, sex, birthdate, weight_lbs, vet_name, vet_phone, medications, allergies, quirks, working_on, progress_summary")
+    .select("id, name, breed, sex, birthdate, weight_lbs, vet_name, vet_phone, medications, allergies, quirks, working_on")
     .eq("id", id)
     .maybeSingle();
   if (!dog) notFound();
@@ -47,12 +48,6 @@ export default async function MyDogPage({ params }: { params: Promise<{ id: stri
       <Card className="mb-4">
         <p className="text-xs uppercase tracking-wide text-muted">Working on</p>
         <p className="font-medium">{dog.working_on || "Nothing set yet"}</p>
-        {dog.progress_summary ? (
-          <>
-            <p className="mt-3 text-xs uppercase tracking-wide text-muted">Where they&apos;re at</p>
-            <p className="whitespace-pre-wrap">{dog.progress_summary}</p>
-          </>
-        ) : null}
       </Card>
 
       <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Homework</h2>
@@ -109,6 +104,7 @@ export default async function MyDogPage({ params }: { params: Promise<{ id: stri
           See photos
         </Link>
       </p>
+      <BackBar href={"/my"} label={"Home"} />
     </>
   );
 }

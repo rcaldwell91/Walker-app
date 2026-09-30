@@ -6,6 +6,7 @@ import { getTimeZone } from "@/lib/timezone";
 import { fetchMyCoverage, inWindow } from "@/lib/coverage";
 import { cancelCoverage } from "../../coverage-actions";
 import { IncomingCoverCard } from "../../cover-cards";
+import { BackBar } from "@/components/back-bar";
 
 const STATUS = { open: "Waiting for an answer", accepted: "Accepted", declined: "Declined", cancelled: "Cancelled" } as const;
 
@@ -32,7 +33,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
           .maybeSingle(),
         supabase
           .from("dogs")
-          .select("id, name, breed, working_on, progress_summary, quirks, medications, allergies, vet_name, vet_phone")
+          .select("id, name, breed, working_on, quirks, medications, allergies, vet_name, vet_phone")
           .in("id", r.dog_ids),
       ])
     : [{ data: null }, { data: null }];
@@ -94,7 +95,6 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
                       {d.breed ? <span className="font-normal text-muted"> · {d.breed}</span> : null}
                     </p>
                     {d.working_on ? <p><span className="text-muted">Working on:</span> {d.working_on}</p> : null}
-                    {d.progress_summary ? <p className="text-muted">{d.progress_summary}</p> : null}
                     {d.quirks ? <p className="text-warn">{d.quirks}</p> : null}
                     {d.medications ? <p><span className="text-muted">Meds:</span> {d.medications}</p> : null}
                     {d.allergies ? <p><span className="text-muted">Allergies:</span> {d.allergies}</p> : null}
@@ -111,7 +111,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
           <Card className="mb-4" data-access={before ? "not-yet" : "closed"}>
             <p className="text-sm">
               {before
-                ? `Dog details and home access open on ${fmtDate(r.access_from, tz)}, the day before the walk.`
+                ? `Pet details and home access open on ${fmtDate(r.access_from, tz)}, the day before the walk.`
                 : `This cover has ended. Access to ${r.client_name}'s details has closed.`}
             </p>
           </Card>
@@ -125,6 +125,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
           </Button>
         </form>
       ) : null}
+      <BackBar href={"/home"} label={"Today"} />
     </>
   );
 }

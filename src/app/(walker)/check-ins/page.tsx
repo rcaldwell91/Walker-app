@@ -4,6 +4,7 @@ import { Stars } from "@/components/score-input";
 import { fmtDate } from "@/lib/format";
 import { getTimeZone } from "@/lib/timezone";
 import { notifyOpenedCheckIns } from "@/lib/notify";
+import { BackBar } from "@/components/back-bar";
 
 type Answers = {
   walker_satisfaction?: number;
@@ -143,6 +144,7 @@ export default async function CheckInsPage() {
           </ul>
         )}
       </section>
+      <BackBar href={"/more"} label={"More"} />
     </>
   );
 }

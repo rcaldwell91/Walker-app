@@ -5,13 +5,10 @@ import { saveProfile } from "./actions";
 import { Button, Card, ErrorText, Field, Input, Select } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 
-type Service = { id: string; name: string; defaultDuration: number; enabled: boolean; rate: string; duration: number | null };
-
 const CADENCES = [7, 14, 30, 60, 90];
 
 export function ProfileForm({
   initial,
-  services,
 }: {
   initial: {
     full_name: string;
@@ -22,7 +19,6 @@ export function ProfileForm({
     suggestion_box_enabled: boolean;
     tips_enabled: boolean;
   };
-  services: Service[];
 }) {
   const [state, action, pending] = useActionState(saveProfile, undefined);
   const cadences = CADENCES.includes(initial.check_in_cadence_days) ? CADENCES : [...CADENCES, initial.check_in_cadence_days].sort((a, b) => a - b);
@@ -41,39 +37,6 @@ export function ProfileForm({
       <Field label="Where you walk" hint="e.g. Noe Valley, Glen Park, Bernal Heights">
         <Input name="service_area" defaultValue={initial.service_area} />
       </Field>
-
-      <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Services and rates</h2>
-        <ul className="flex flex-col gap-2">
-          {services.map((s) => (
-            <li key={s.id}>
-              <Card className="flex flex-col gap-2" >
-                <label className="flex items-center gap-2 font-medium">
-                  <input type="checkbox" name={`svc_enabled[${s.id}]`} defaultChecked={s.enabled} className="h-5 w-5" />
-                  {s.name}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Rate ($)">
-                    <Input name={`svc_rate[${s.id}]`} inputMode="decimal" defaultValue={s.rate} placeholder="e.g. 25" aria-label={`${s.name} rate in dollars`} />
-                  </Field>
-                  <Field label="Minutes">
-                    <Input
-                      name={`svc_duration[${s.id}]`}
-                      type="number"
-                      min={5}
-                      max={1440}
-                      step={5}
-                      defaultValue={s.duration ?? s.defaultDuration}
-                      aria-label={`${s.name} minutes`}
-                    />
-                  </Field>
-                </div>
-              </Card>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1 text-xs text-muted">Checked services show on your public page with their rate.</p>
-      </div>
 
       <div>
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Client relationship</h2>

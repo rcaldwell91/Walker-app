@@ -22,7 +22,7 @@ export function CheckInForm({ checkInId, walkerName }: { checkInId: string; walk
       <form action={action} className="flex flex-col gap-4">
         <ScoreInput name="walker_satisfaction" label={`How happy are you with ${walkerName}?`} low="Not happy" high="Love it" />
         <ScoreInput name="app_satisfaction" label="How's this app working for you?" low="Frustrating" high="Easy" />
-        <Field label="Progress you've seen in your dog">
+        <Field label="Progress you've seen in your pet">
           <VoiceInput name="dog_progress" rows={2} />
         </Field>
         <Field label="What you're working on at home">

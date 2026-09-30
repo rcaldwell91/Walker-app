@@ -108,7 +108,7 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
   const { error: dogErr } = await supabase
     .from("booking_dogs")
     .insert(dogIds.map((dog_id) => ({ booking_id: bookingId!, dog_id })));
-  if (dogErr) return { error: `Saved, but the dogs didn't attach: ${dogErr.message}` };
+  if (dogErr) return { error: `Saved, but the pets didn't attach: ${dogErr.message}` };
 
   revalidatePath("/schedule");
   revalidatePath("/home");

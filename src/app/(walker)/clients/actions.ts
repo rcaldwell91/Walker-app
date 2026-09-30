@@ -86,7 +86,7 @@ export async function regenerateInvite(clientId: string) {
 
 export async function addDogAction(clientId: string, _: ActionState, form: FormData): Promise<ActionState> {
   const name = String(form.get("name") ?? "").trim();
-  if (!name) return { error: "Enter the dog's name" };
+  if (!name) return { error: "Enter the pet's name" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { data, error } = await supabase
     .from("dogs")
@@ -94,7 +94,7 @@ export async function addDogAction(clientId: string, _: ActionState, form: FormD
     .select("id")
     .single();
   if (error || !data) return { error: error?.message ?? "Couldn't save" };
-  redirect(`/dogs/${data.id}`);
+  redirect(`/pets/${data.id}`);
 }
 
 const clientRatingSchema = z.object({

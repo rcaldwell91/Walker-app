@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/session";
 import { PageTitle } from "@/components/ui";
 import { ClientForm } from "@/components/client-form";
 import { updateClientAction } from "../../actions";
+import { BackBar } from "@/components/back-bar";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +14,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
     <>
       <PageTitle>Edit {client.name}</PageTitle>
       <ClientForm action={updateClientAction.bind(null, id)} initial={client} />
+      <BackBar href={`/clients/${client.id}`} label={client.name} />
     </>
   );
 }

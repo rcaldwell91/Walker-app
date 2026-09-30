@@ -104,7 +104,7 @@ export async function respondToCoverage(requestId: string, accept: boolean) {
       await notify([await clientProfileId(r.client_id)], {
         kind: "message",
         title: "Your walk is covered",
-        body: `${r.to_name} is covering ${r.dog_names ?? "your dog"}'s walk on ${fmtDate(r.starts_at, tz)}.`,
+        body: `${r.to_name} is covering ${r.dog_names ?? "your pet"}'s walk on ${fmtDate(r.starts_at, tz)}.`,
         url: "/my/messages",
       });
     }

@@ -15,6 +15,7 @@ import { cents } from "@/lib/format";
 import { INVOICE_FIELDS, SCHEDULE_LABEL, draftDueInvoices, statusLabel, summarize, type Schedule } from "@/lib/billing";
 import { billClientNow } from "../../money/actions";
 import { ScheduleSelect } from "./schedule-select";
+import { BackBar } from "@/components/back-bar";
 
 export default async function ClientDetailPage({
   params,
@@ -78,7 +79,7 @@ export default async function ClientDetailPage({
         <Card className="mb-4">
           <p className="mb-2 font-medium">Send {client.name.split(" ")[0]} their link</p>
           <p className="mb-3 text-sm text-muted">
-            They&apos;ll set a password and fill in their dog&apos;s details. Link expires in 14 days.
+            They&apos;ll set a password and fill in their pets&apos; details. Link expires in 14 days.
           </p>
           {inviteUrl ? (
             <InviteLink url={inviteUrl} />
@@ -90,13 +91,13 @@ export default async function ClientDetailPage({
         </Card>
       ) : null}
 
-      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Dogs</h2>
+      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Pets</h2>
       <ul className="mb-3 flex flex-col gap-2">
         {(client.dogs ?? [])
           .filter((d) => d.active)
           .map((d) => (
             <li key={d.id}>
-              <Link href={`/dogs/${d.id}`}>
+              <Link href={`/pets/${d.id}`}>
                 <Card>
                   <p className="font-medium">{d.name}</p>
                   {d.working_on ? <p className="text-sm text-muted">Working on: {d.working_on}</p> : null}
@@ -210,6 +211,7 @@ export default async function ClientDetailPage({
           Messages
         </LinkButton>
       </div>
+      <BackBar href={"/clients"} label={"Pets & clients"} />
     </>
   );
 }

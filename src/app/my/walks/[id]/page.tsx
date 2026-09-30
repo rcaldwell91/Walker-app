@@ -5,6 +5,7 @@ import { getTimeZone } from "@/lib/timezone";
 import { loadWalkReport, WalkReportView } from "@/components/walk-report";
 import { RateWalkForm, TipForm, TipThanks } from "../../relationship-forms";
 import { Stars } from "@/components/score-input";
+import { BackBar } from "@/components/back-bar";
 
 export default async function ClientWalkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,6 +54,7 @@ export default async function ClientWalkPage({ params }: { params: Promise<{ id:
           ) : null}
         </>
       ) : null}
+      <BackBar href={"/my/walks"} label={"Walks"} />
     </>
   );
 }

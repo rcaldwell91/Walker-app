@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { PageTitle } from "@/components/ui";
 import { IntakeForm } from "./intake-form";
+import { BackBar } from "@/components/back-bar";
 
 export default async function IntakePage() {
   const { supabase, user } = await requireRole("client");
@@ -17,9 +18,10 @@ export default async function IntakePage() {
   return (
     <>
       <PageTitle sub="Tell your walker what they need to know. Takes a few minutes; you can change it later.">
-        About you and your dog
+        About you and your pets
       </PageTitle>
       <IntakeForm client={client} dogs={client.dogs ?? []} />
+      <BackBar href={"/my/more"} label={"More"} />
     </>
   );
 }

@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 export function Card({ children, className = "", ...rest }: ComponentProps<"div">) {
   return (
-    <div className={`rounded-2xl border border-border bg-card p-4 ${className}`} {...rest}>
+    <div className={`rounded-2xl border border-border bg-card p-4 shadow-card ${className}`} {...rest}>
       {children}
     </div>
   );
@@ -23,7 +23,7 @@ const btnBase =
 const variants = {
   primary: "bg-accent text-accent-fg",
   secondary: "border border-border bg-card",
-  danger: "bg-warn text-white",
+  danger: "bg-warn text-warn-fg",
   ghost: "text-accent",
 };
 
@@ -85,4 +85,56 @@ export function Empty({ children }: { children: ReactNode }) {
 export function ErrorText({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return <p className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">{children}</p>;
+}
+
+export function SectionTitle({ children, id, className = "" }: { children: ReactNode; id?: string; className?: string }) {
+  return (
+    <h2 id={id} className={`mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted first:mt-0 ${className}`}>
+      {children}
+    </h2>
+  );
+}
+
+/** A tappable list of places to go: big rows, a line of explanation, an optional badge. */
+export function NavList({
+  items,
+}: {
+  items: { href?: string; label: string; sub?: string; badge?: ReactNode; disabled?: boolean }[];
+}) {
+  return (
+    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      {items.map((i) => {
+        const body = (
+          <>
+            <span className="min-w-0">
+              <span className="block font-medium">{i.label}</span>
+              {i.sub ? <span className="block text-sm text-muted">{i.sub}</span> : null}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {i.badge}
+              {i.disabled ? null : <span className="text-lg text-muted" aria-hidden="true">›</span>}
+            </span>
+          </>
+        );
+        return (
+          <li key={i.label}>
+            {i.href && !i.disabled ? (
+              <Link href={i.href} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 active:bg-bg">
+                {body}
+              </Link>
+            ) : (
+              <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 opacity-50" aria-disabled="true">
+                {body}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function Badge({ children, tone = "accent" }: { children: ReactNode; tone?: "accent" | "warn" | "muted" }) {
+  const tones = { accent: "bg-accent text-accent-fg", warn: "bg-warn text-warn-fg", muted: "bg-border text-fg" };
+  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
 }

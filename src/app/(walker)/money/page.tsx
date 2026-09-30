@@ -4,7 +4,8 @@ import { getTimeZone } from "@/lib/timezone";
 import { dateKey, fmtDateKey } from "@/lib/time";
 import { cents, fmtDate } from "@/lib/format";
 import { draftDueInvoices, INVOICE_FIELDS, statusLabel, summarize } from "@/lib/billing";
-import { Button, Card, Empty, Input, LinkButton, PageTitle } from "@/components/ui";
+import { Button, Card, Empty, Input, LinkButton, NavList, PageTitle } from "@/components/ui";
+import { BackBar } from "@/components/back-bar";
 import { setNetDays } from "./actions";
 
 const one = <T,>(x: T | T[] | null | undefined) => (Array.isArray(x) ? x[0] : x) ?? null;
@@ -59,6 +60,10 @@ export default async function MoneyPage() {
     <>
       <PageTitle sub="Finished walks become invoice lines at your rate. Drafts appear here when a billing period ends.">Money</PageTitle>
 
+      <div className="mb-4">
+        <NavList items={[{ href: "/money/rates", label: "My rates", sub: "What you charge for walks and visits" }]} />
+      </div>
+
       <div className="mb-4 grid grid-cols-3 gap-2 text-center">
         <Card className="px-2">
           <p className="text-xl font-semibold" data-outstanding={outstanding}>{cents(outstanding)}</p>
@@ -112,7 +117,7 @@ export default async function MoneyPage() {
                       <span className="block text-xs text-muted">{c.count} open invoice{c.count === 1 ? "" : "s"}</span>
                     </span>
                     <span className="flex items-center gap-2">
-                      {c.overdue ? <span className="rounded-full bg-warn px-2 py-0.5 text-xs text-white">Overdue</span> : null}
+                      {c.overdue ? <span className="rounded-full bg-warn px-2 py-0.5 text-xs text-warn-fg">Overdue</span> : null}
                       <span className="font-semibold">{cents(c.balance)}</span>
                     </span>
                   </Card>
@@ -190,6 +195,7 @@ export default async function MoneyPage() {
       <LinkButton href="/money/export" variant="secondary" className="w-full" prefetch={false}>
         Download CSV (invoices, payments, tips)
       </LinkButton>
+      <BackBar href="/more" label="More" />
     </>
   );
 }

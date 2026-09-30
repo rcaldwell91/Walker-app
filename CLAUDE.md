@@ -25,7 +25,22 @@ Read `docs/BLUEPRINT.md` first. It has the feature list grouped by build stage a
 
 1 Foundation · 2 Getting people in · 3 The walk · 4 Schedule, routes, GPS · 5 Client relationship · 6 Coverage squad · 7 Home screen and push · 8 Money (walkers billing clients) · Phase two: community and safety, marketplace
 
-Placeholder pages for later stages use `<ComingSoon stage={n}>`. Replace them as you build.
+Phase-two features are listed (greyed, not linked) on More → Coming soon, from `src/lib/phase-two.ts`. Every walker sees every section for now; per-walker section choice comes later (docs/REDESIGN.md).
+
+## Look and navigation
+
+- **Pets, not dogs,** in anything a person sees. Database names stay (`dogs`, `dog_id`); routes are `/pets` and `/my/pets` (`/dogs` redirects).
+- **Every page below the top level renders `<BackBar href label>`** pointing at its real parent (bottom left, above the tabs — thumb reach, not a top corner).
+- **Light and dark:** colours are tokens in `globals.css`; never hard-code a colour that has to read on both. `data-theme` on `<html>` (cookie `theme`) overrides the phone's setting.
+- **More is groups:** `/clients` (Pets & clients), `/money`, `/hours` (Schedule & hours), `/check-ins`, `/squad`, `/profile` (Profile & account), `/coming-soon`.
+
+## The walk (three stages)
+
+- **Before** (`/walk/new` → `/walk/[id]` until `walks.walking_at`), **Walking** (until `wrapup_at`, set by "End walk" — the walk's end time), **Wrap-up** (`/walk/[id]/end`).
+- The wrap-up is a draft on the phone (localStorage) until **Finish**, which calls `finish_walk()` (0019): one transaction for log taps, ratings, working on, photo tags and the walk. Anything that saves one user action across several tables goes in one transaction like this.
+- Quick ratings live in `src/lib/pet-scores.ts` (add a line to add a category). Park attributes in `src/lib/parks.ts`.
+- Owners see a walk's photos only once it's finished (0018); tags decide which owners (`photo_pets`, `client_can_see_photo`).
+- **"Talk it through"** (`walk/voice-actions.ts`) calls the Anthropic API server-side with `ANTHROPIC_API_KEY`; without it the button says "Needs setup". The key never goes to the browser.
 
 ## Maps, geocoding, routing (Stage 4)
 

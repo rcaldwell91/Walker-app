@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
@@ -6,6 +5,7 @@ import { dateKey, fmtDateKey } from "@/lib/time";
 import { cents, fmtDate } from "@/lib/format";
 import { METHOD_LABEL, statusLabel, summarize } from "@/lib/billing";
 import { Card, PageTitle } from "@/components/ui";
+import { BackBar } from "@/components/back-bar";
 
 const one = <T,>(x: T | T[] | null | undefined) => (Array.isArray(x) ? x[0] : x) ?? null;
 
@@ -30,7 +30,6 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <Link href="/my/more#invoices" className="mb-2 inline-block text-sm text-accent">← Invoices</Link>
       <PageTitle
         sub={
           <>
@@ -99,6 +98,7 @@ export default async function ClientInvoicePage({ params }: { params: Promise<{ 
       ) : (
         <p className="text-center text-accent">Paid in full. Thank you!</p>
       )}
+      <BackBar href="/my/more" label="More" />
     </>
   );
 }

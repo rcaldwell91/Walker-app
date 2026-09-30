@@ -1,37 +1,25 @@
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { requireRole } from "@/lib/session";
-import { Card, PageTitle } from "@/components/ui";
+import { logout } from "@/app/(auth)/actions";
+import { Button, Card, NavList, PageTitle, SectionTitle } from "@/components/ui";
+import { BackBar } from "@/components/back-bar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
 import { ProfileForm } from "./profile-form";
 import { AvatarUpload, BackgroundCheckUpload } from "./uploads";
 import { NotificationSettings } from "@/components/notification-settings";
 
 export default async function ProfilePage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
-  const [{ data: walker }, { data: types }, { data: mine }] = await Promise.all([
+  const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
+  const [{ data: walker }] = await Promise.all([
     supabase
       .from("walkers")
       .select("handle, business_name, bio, service_area, check_in_cadence_days, suggestion_box_enabled, tips_enabled, background_check_path, background_check_verified_at")
       .eq("id", user.id)
       .single(),
-    supabase.from("service_types").select("id, name, default_duration_min, walker_id, sort_order").order("sort_order"),
-    supabase.from("walker_services").select("service_type_id, rate_cents, duration_min, enabled").eq("walker_id", user.id),
   ]);
   if (!walker) return <PageTitle>Profile not found</PageTitle>;
-
-  const byType = new Map((mine ?? []).map((s) => [s.service_type_id, s]));
-  const services = (types ?? [])
-    .filter((t) => t.walker_id === null || t.walker_id === user.id)
-    .map((t) => {
-      const s = byType.get(t.id);
-      return {
-        id: t.id,
-        name: t.name,
-        defaultDuration: t.default_duration_min,
-        enabled: s?.enabled ?? false,
-        rate: s ? (s.rate_cents / 100).toFixed(2).replace(/\.00$/, "") : "",
-        duration: s?.duration_min ?? null,
-      };
-    });
 
   let proofUrl: string | null = null;
   if (walker.background_check_path) {
@@ -41,23 +29,22 @@ export default async function ProfilePage() {
 
   return (
     <>
-      <PageTitle
-        sub={
-          <>
-            Your public page:{" "}
-            <Link href={`/w/${walker.handle}`} className="text-accent underline">
-              /w/{walker.handle}
-            </Link>
-          </>
-        }
-      >
-        My profile
-      </PageTitle>
+      <PageTitle sub={profile?.full_name}>Profile & account</PageTitle>
 
-      <Card className="mb-4">
+      <NavList
+        items={[
+          { href: `/w/${walker.handle}`, label: "Your public page", sub: `/w/${walker.handle} · what clients see` },
+          { href: "/install", label: "Add to home screen", sub: "Open Walker like an app, full screen" },
+          { href: "/billing", label: "Plan and fees" },
+        ]}
+      />
+
+      <SectionTitle>Photo</SectionTitle>
+      <Card>
         <AvatarUpload userId={user.id} current={profile?.avatar_url ?? null} name={profile?.full_name ?? ""} />
       </Card>
 
+      <SectionTitle>Profile</SectionTitle>
       <ProfileForm
         initial={{
           full_name: profile?.full_name ?? "",
@@ -68,13 +55,16 @@ export default async function ProfilePage() {
           suggestion_box_enabled: walker.suggestion_box_enabled,
           tips_enabled: walker.tips_enabled,
         }}
-        services={services}
       />
+      <p className="mt-2 text-sm text-muted">Your rates are under More → Money → My rates.</p>
 
-      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Notifications</h2>
+      <SectionTitle>Appearance</SectionTitle>
+      <ThemeToggle initial={isThemeChoice(themeCookie) ? themeCookie : "system"} />
+
+      <SectionTitle>Notifications</SectionTitle>
       <NotificationSettings role="walker" off={profile?.notify_off ?? []} />
 
-      <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Background check</h2>
+      <SectionTitle>Background check</SectionTitle>
       <Card>
         <p className="mb-1 text-sm" data-check-status={walker.background_check_verified_at ? "verified" : walker.background_check_path ? "pending" : "none"}>
           {walker.background_check_verified_at
@@ -84,12 +74,20 @@ export default async function ProfilePage() {
               : "Upload proof of a background check (PDF or photo). Only you and the platform can see the file."}
         </p>
         {proofUrl ? (
-          <a href={proofUrl} target="_blank" rel="noreferrer" className="mb-3 block text-sm text-accent underline">
+          <a href={proofUrl} target="_blank" rel="noreferrer" className="mb-3 block min-h-11 py-2 text-sm text-accent underline">
             View what you uploaded
           </a>
         ) : null}
         <BackgroundCheckUpload userId={user.id} hasFile={!!walker.background_check_path} />
       </Card>
+
+      <form action={logout} className="mt-8">
+        <Button type="submit" variant="secondary" className="w-full">
+          Log out
+        </Button>
+      </form>
+
+      <BackBar href="/more" label="More" />
     </>
   );
 }

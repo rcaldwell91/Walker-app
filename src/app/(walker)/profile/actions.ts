@@ -20,27 +20,6 @@ export async function saveProfile(_: ProfileState, form: FormData): Promise<Prof
   const d = parsed.data;
   const { supabase, user } = await requireRole("walker", "operator");
 
-  // Services: svc_enabled[<id>], svc_rate[<id>] (dollars), svc_duration[<id>] (minutes)
-  const rows: { walker_id: string; service_type_id: string; rate_cents: number; duration_min: number | null; enabled: boolean }[] = [];
-  const ids = new Set<string>();
-  for (const k of form.keys()) {
-    const m = k.match(/^svc_rate\[(.+)\]$/);
-    if (m) ids.add(m[1]);
-  }
-  for (const id of ids) {
-    const rateRaw = String(form.get(`svc_rate[${id}]`) ?? "").trim();
-    const enabled = form.get(`svc_enabled[${id}]`) === "on";
-    if (!rateRaw) {
-      if (enabled) return { error: "Add a rate for each service you offer" };
-      continue;
-    }
-    const rate = Number(rateRaw);
-    if (!Number.isFinite(rate) || rate < 0 || rate > 10000) return { error: "Rates should be dollar amounts, like 25 or 27.50" };
-    const dur = Number(String(form.get(`svc_duration[${id}]`) ?? "")) || null;
-    if (dur !== null && (dur < 5 || dur > 1440)) return { error: "Durations are 5 to 1,440 minutes" };
-    rows.push({ walker_id: user.id, service_type_id: id, rate_cents: Math.round(rate * 100), duration_min: dur, enabled });
-  }
-
   const [{ error: pErr }, { error: wErr }] = await Promise.all([
     supabase.from("profiles").update({ full_name: d.full_name }).eq("id", user.id),
     supabase
@@ -56,10 +35,6 @@ export async function saveProfile(_: ProfileState, form: FormData): Promise<Prof
       .eq("id", user.id),
   ]);
   if (pErr || wErr) return { error: (pErr ?? wErr)!.message };
-  if (rows.length) {
-    const { error } = await supabase.from("walker_services").upsert(rows, { onConflict: "walker_id,service_type_id" });
-    if (error) return { error: error.message };
-  }
   revalidatePath("/profile");
   return { saved: Date.now() };
 }

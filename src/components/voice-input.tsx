@@ -26,29 +26,17 @@ function getRecognition(): SpeechRecognitionLike | null {
 }
 
 /**
- * Textarea with a mic button. Talk, and it types. Works in Chrome and Safari
- * (iOS 14.5+). Where speech isn't supported the mic button hides and it's a
- * normal textarea. Raw transcript is submitted alongside via `${name}_raw`.
+ * Browser speech-to-text (Web Speech API). Works in Chrome and Safari (iOS 14.5+).
+ * `onFinal` gets each finished phrase; `interim` is what's being heard right now.
  */
-export function VoiceInput({
-  name,
-  defaultValue = "",
-  placeholder,
-  rows = 4,
-  autoFocus,
-}: {
-  name: string;
-  defaultValue?: string;
-  placeholder?: string;
-  rows?: number;
-  autoFocus?: boolean;
-}) {
-  const [value, setValue] = useState(defaultValue);
+export function useSpeechToText(onFinal: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const [interim, setInterim] = useState("");
+  const [blocked, setBlocked] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
-  const rawRef = useRef<string[]>([]);
+  const onFinalRef = useRef(onFinal);
+  onFinalRef.current = onFinal;
 
   useEffect(() => {
     setSupported(!!getRecognition());
@@ -65,10 +53,8 @@ export function VoiceInput({
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
         const t = r[0].transcript;
-        if (r.isFinal) {
-          rawRef.current.push(t);
-          setValue((v) => (v ? `${v.trim()} ${t.trim()}` : t.trim()));
-        } else interimText += t;
+        if (r.isFinal) onFinalRef.current(t.trim());
+        else interimText += t;
       }
       setInterim(interimText);
     };
@@ -76,11 +62,14 @@ export function VoiceInput({
       setListening(false);
       setInterim("");
     };
-    rec.onerror = () => {
+    rec.onerror = (e) => {
       setListening(false);
       setInterim("");
+      // Mic refused, or no mic at all: say so, and typing still works.
+      if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") setBlocked(true);
     };
     recRef.current = rec;
+    setBlocked(false);
     rec.start();
     setListening(true);
   }
@@ -90,26 +79,72 @@ export function VoiceInput({
     setListening(false);
   }
 
+  return { supported, listening, interim, blocked, start, stop };
+}
+
+/**
+ * Textarea with a mic button. Talk, and it types. Where speech isn't supported
+ * the mic button hides and it's a normal textarea. Raw transcript is submitted
+ * alongside via `${name}_raw`. Pass `value` and `onValueChange` to control it.
+ */
+export function VoiceInput({
+  name,
+  defaultValue = "",
+  value: controlled,
+  onValueChange,
+  placeholder,
+  rows = 4,
+  autoFocus,
+  className = "",
+  ...rest
+}: {
+  name?: string;
+  defaultValue?: string;
+  value?: string;
+  onValueChange?: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  autoFocus?: boolean;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const [own, setOwn] = useState(defaultValue);
+  const value = controlled ?? own;
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const set = (v: string) => {
+    if (controlled === undefined) setOwn(v);
+    onValueChange?.(v);
+  };
+  const rawRef = useRef<string[]>([]);
+  const speech = useSpeechToText((t) => {
+    rawRef.current.push(t);
+    const v = valueRef.current;
+    set(v ? `${v.trim()} ${t}` : t);
+  });
+
   return (
     <div className="relative">
       <textarea
         name={name}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => set(e.target.value)}
         placeholder={placeholder}
         rows={rows}
         autoFocus={autoFocus}
-        className={`${inputClass} ${supported ? "pr-14" : ""}`}
+        aria-label={rest["aria-label"]}
+        className={`${inputClass} ${speech.supported ? "pr-14" : ""} ${className}`}
       />
-      <input type="hidden" name={`${name}_raw`} value={rawRef.current.join(" ")} readOnly />
-      {interim ? <p className="mt-1 text-sm italic text-muted">{interim}…</p> : null}
-      {supported ? (
+      {name ? <input type="hidden" name={`${name}_raw`} value={rawRef.current.join(" ")} readOnly /> : null}
+      {speech.interim ? <p className="mt-1 text-sm italic text-muted">{speech.interim}…</p> : null}
+      {speech.blocked ? <p className="mt-1 text-sm text-warn">Can&apos;t use the microphone. Type instead, or allow it in settings.</p> : null}
+      {speech.supported ? (
         <button
           type="button"
-          onClick={listening ? stop : start}
-          aria-label={listening ? "Stop listening" : "Talk instead of typing"}
-          className={`absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full ${
-            listening ? "animate-pulse bg-warn text-white" : "bg-accent text-accent-fg"
+          onClick={speech.listening ? speech.stop : speech.start}
+          aria-label={speech.listening ? "Stop listening" : "Talk instead of typing"}
+          className={`absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full ${
+            speech.listening ? "animate-pulse bg-warn text-warn-fg" : "bg-accent text-accent-fg"
           }`}
         >
           <MicIcon />
@@ -119,7 +154,7 @@ export function VoiceInput({
   );
 }
 
-function MicIcon() {
+export function MicIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="9" y="2" width="6" height="12" rx="3" />

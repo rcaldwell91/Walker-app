@@ -17,7 +17,7 @@ export default async function ClientHome() {
 
   const [{ data: clients }, { data: dogs }, { data: recentWalks }, { data: homework }] = await Promise.all([
     supabase.from("clients").select("id, intake_completed_at, walker:walkers!clients_walker_id_fkey(business_name, handle, profile:profiles(full_name))"),
-    supabase.from("dogs").select("id, name, working_on, progress_summary").eq("active", true).order("name"),
+    supabase.from("dogs").select("id, name, working_on").eq("active", true).order("name"),
     supabase
       .from("walks")
       .select("id, started_at, ended_at, status, distance_m, service:service_types(name), walk_dogs(dog:dogs(name))")
@@ -54,7 +54,7 @@ export default async function ClientHome() {
 
       {needsIntake ? (
         <Card className="mb-4 border-accent bg-accent/10">
-          <p className="font-medium">Finish telling your walker about your dog</p>
+          <p className="font-medium">Finish telling your walker about your pets</p>
           <LinkButton href="/my/intake" className="mt-3 w-full">
             Fill it in
           </LinkButton>
@@ -92,18 +92,17 @@ export default async function ClientHome() {
         </Link>
       ) : null}
 
-      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Your dogs</h2>
+      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Your pets</h2>
       {!dogs?.length ? (
-        <Empty>No dogs on file yet.</Empty>
+        <Empty>No pets on file yet.</Empty>
       ) : (
         <ul className="mb-6 flex flex-col gap-2">
           {dogs.map((d) => (
             <li key={d.id}>
-              <Link href={`/my/dogs/${d.id}`}>
+              <Link href={`/my/pets/${d.id}`}>
                 <Card>
                   <p className="font-medium">{d.name}</p>
                   {d.working_on ? <p className="text-sm text-muted">Working on: {d.working_on}</p> : null}
-                  {d.progress_summary ? <p className="mt-1 text-sm">{d.progress_summary}</p> : null}
                 </Card>
               </Link>
             </li>

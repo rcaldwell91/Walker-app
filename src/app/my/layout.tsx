@@ -14,7 +14,7 @@ export default async function ClientLayout({ children }: { children: React.React
   return (
     <TimeZoneProvider tz={tz}>
       <AppSetup platform={platform} showGuide={showGuide} />
-      <div className="mx-auto max-w-md px-4 pb-24 pt-6">{children}</div>
+      <div className="mx-auto max-w-md px-4 pb-40 pt-6">{children}</div>
       <BottomNav role="client" />
     </TimeZoneProvider>
   );

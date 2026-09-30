@@ -3,6 +3,7 @@ import { Button, Card, Empty, PageTitle } from "@/components/ui";
 import { FindWalker } from "./find-walker";
 import { WalkerCard } from "./walker-card";
 import { removeLink, respondToLink } from "./actions";
+import { BackBar } from "@/components/back-bar";
 
 type Link = {
   link_id: string;
@@ -102,6 +103,7 @@ export default async function SquadPage() {
           </ul>
         </section>
       ) : null}
+      <BackBar href={"/more"} label={"More"} />
     </>
   );
 }

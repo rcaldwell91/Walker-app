@@ -71,7 +71,7 @@ export function BookingForm({
       </Field>
 
       <div>
-        <span className="mb-1 block text-sm font-medium">Dogs</span>
+        <span className="mb-1 block text-sm font-medium">Pets</span>
         {client?.dogs.length ? (
           <div className="flex flex-wrap gap-2">
             {client.dogs.map((d) => {
@@ -97,7 +97,7 @@ export function BookingForm({
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted">No dogs on file for this client yet.</p>
+          <p className="text-sm text-muted">No pets on file for this client yet.</p>
         )}
       </div>
 

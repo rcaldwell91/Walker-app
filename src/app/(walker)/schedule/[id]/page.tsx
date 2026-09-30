@@ -12,6 +12,7 @@ import { MoveOccurrenceForm } from "./move-form";
 import { CoverRequestForm } from "./cover-form";
 import { cancelCoverage } from "../../coverage-actions";
 import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
+import { BackBar } from "@/components/back-bar";
 
 export default async function EditBookingPage({
   params,
@@ -174,6 +175,7 @@ export default async function EditBookingPage({
           </Button>
         </form>
       ) : null}
+      <BackBar href={"/schedule"} label={"Bookings"} />
     </>
   );
 }
