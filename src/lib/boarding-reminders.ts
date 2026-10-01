@@ -1,15 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, dateKey, fmtDateKey } from "./time";
 import { clientProfileId, notify } from "./notify";
+import { createServiceClient } from "./supabase/server";
 
 /**
  * "Boarding starts tomorrow" / "ends tomorrow", for the walker and the client.
  * Worked out on page load (no cron): claim_stay_reminders() marks each one
- * sent in the same statement, so two page loads never both send it.
+ * sent in the same statement, so two page loads never both send it. It's
+ * service-role only (0025); `userId` is the signed-in person from the session,
+ * and it only claims that person's own stays.
  */
-export async function sendStayReminders(supabase: SupabaseClient, tz: string) {
+export async function sendStayReminders(supabase: SupabaseClient, userId: string, tz: string) {
   const tomorrow = addDays(dateKey(new Date(), tz), 1);
-  const { data: due, error } = await supabase.rpc("claim_stay_reminders", { p_tomorrow: tomorrow });
+  const { data: due, error } = await createServiceClient().rpc("claim_stay_reminders", { p_actor: userId, p_tomorrow: tomorrow });
   if (error || !due?.length) return;
   const rows = due as { stay_id: string; kind: "start" | "end"; walker_id: string; client_id: string }[];
   const { data: stays } = await supabase

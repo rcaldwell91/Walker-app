@@ -1,0 +1,814 @@
+[
+ {
+  "who": "anon",
+  "fn": "apply_coverage_acceptance",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.apply_coverage_acceptance without parameters in the sch"
+ },
+ {
+  "who": "anon",
+  "fn": "approval_revoked",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.approval_revoked without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "bill_finished_walk",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.bill_finished_walk without parameters in the schema cac"
+ },
+ {
+  "who": "anon",
+  "fn": "cancel_covers_of_suspended",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.cancel_covers_of_suspended without parameters in the sc"
+ },
+ {
+  "who": "anon",
+  "fn": "claim_stay_reminders",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "client_can_see_photo",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "anon",
+  "fn": "client_squad_choices",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "client_stay_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "covering_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "covering_dog_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "current_role_is",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "anon",
+  "fn": "end_stay",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That stay isn't yours"
+ },
+ {
+  "who": "anon",
+  "fn": "find_walker_by_handle",
+  "definer": false,
+  "status": 401,
+  "verdict": "refused",
+  "detail": "permission denied for function find_walker_by_handle"
+ },
+ {
+  "who": "anon",
+  "fn": "finish_walk",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That walk isn't yours"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_approval_ask",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_approval_ask without parameters in the schema cac"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_check_in_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_check_in_update without parameters in the schema "
+ },
+ {
+  "who": "anon",
+  "fn": "guard_client_self_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_client_self_update without parameters in the sche"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_coverage_request",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_coverage_request without parameters in the schema"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_invoice_line",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_invoice_line without parameters in the schema cac"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_invoice",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_invoice without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_message_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_message_update without parameters in the schema c"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_profile_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_profile_update without parameters in the schema c"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_squad_link",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_squad_link without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_tip",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_tip without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "guard_walker_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_walker_update without parameters in the schema ca"
+ },
+ {
+  "who": "anon",
+  "fn": "handle_new_user",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.handle_new_user without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "i_am_suspended",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "anon",
+  "fn": "is_operator",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "anon",
+  "fn": "my_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "my_coverage",
+  "definer": false,
+  "status": 401,
+  "verdict": "refused",
+  "detail": "permission denied for function my_coverage"
+ },
+ {
+  "who": "anon",
+  "fn": "my_squad_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "my_stay_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "number_invoice",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.number_invoice without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "open_due_check_ins",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "post_stay_update",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That update isn't yours"
+ },
+ {
+  "who": "anon",
+  "fn": "prepare_coverage_request",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.prepare_coverage_request without parameters in the sche"
+ },
+ {
+  "who": "anon",
+  "fn": "public_walker_profile",
+  "definer": false,
+  "status": 200,
+  "verdict": "by design",
+  "detail": "{\"bio\":\"\",\"handle\":\"e2e-walker\",\"boarding\":{\"night_cents\":4000,\"extra_pet_cents\":null},\"se"
+ },
+ {
+  "who": "anon",
+  "fn": "reschedule_coverage",
+  "definer": false,
+  "status": 401,
+  "verdict": "refused",
+  "detail": "permission denied for function reschedule_coverage"
+ },
+ {
+  "who": "anon",
+  "fn": "set_updated_at",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.set_updated_at without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "squad_ids_of",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[\"c2a669fc-0e69-41ae-b4d8-92cad3db9f1b\"]"
+ },
+ {
+  "who": "anon",
+  "fn": "squad_link_ended",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.squad_link_ended without parameters in the schema cache"
+ },
+ {
+  "who": "anon",
+  "fn": "squad_overview",
+  "definer": false,
+  "status": 401,
+  "verdict": "refused",
+  "detail": "permission denied for function squad_overview"
+ },
+ {
+  "who": "anon",
+  "fn": "void_invoice_after",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.void_invoice_after without parameters in the schema cac"
+ },
+ {
+  "who": "anon",
+  "fn": "void_invoice_before",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.void_invoice_before without parameters in the schema ca"
+ },
+ {
+  "who": "anon",
+  "fn": "walk_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[\"30a7956c-83cd-486a-86d9-297cb0f4c0b1\",\"715c8d45-6794-4b71-a305-4032ab573fa5\"]"
+ },
+ {
+  "who": "anon",
+  "fn": "walk_walker_name",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "null"
+ },
+ {
+  "who": "anon",
+  "fn": "walker_can_see_covered_photo",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "anon",
+  "fn": "walker_is_suspended",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "true"
+ },
+ {
+  "who": "anon",
+  "fn": "walks_with_my_dogs",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "apply_coverage_acceptance",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.apply_coverage_acceptance without parameters in the sch"
+ },
+ {
+  "who": "nobody",
+  "fn": "approval_revoked",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.approval_revoked without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "bill_finished_walk",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.bill_finished_walk without parameters in the schema cac"
+ },
+ {
+  "who": "nobody",
+  "fn": "cancel_covers_of_suspended",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.cancel_covers_of_suspended without parameters in the sc"
+ },
+ {
+  "who": "nobody",
+  "fn": "claim_stay_reminders",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "client_can_see_photo",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "nobody",
+  "fn": "client_squad_choices",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "client_stay_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "covering_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "covering_dog_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "current_role_is",
+  "definer": false,
+  "status": 200,
+  "verdict": "by design",
+  "detail": "true"
+ },
+ {
+  "who": "nobody",
+  "fn": "end_stay",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That stay isn't yours"
+ },
+ {
+  "who": "nobody",
+  "fn": "find_walker_by_handle",
+  "definer": false,
+  "status": 200,
+  "verdict": "by design",
+  "detail": "[{\"id\":\"56018e27-c5a7-4f4a-8b65-d8e44901a736\",\"handle\":\"e2e-walker\",\"full_name\":\"E2E Walke"
+ },
+ {
+  "who": "nobody",
+  "fn": "finish_walk",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That walk isn't yours"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_approval_ask",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_approval_ask without parameters in the schema cac"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_check_in_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_check_in_update without parameters in the schema "
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_client_self_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_client_self_update without parameters in the sche"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_coverage_request",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_coverage_request without parameters in the schema"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_invoice_line",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_invoice_line without parameters in the schema cac"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_invoice",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_invoice without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_message_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_message_update without parameters in the schema c"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_profile_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_profile_update without parameters in the schema c"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_squad_link",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_squad_link without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_tip",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_tip without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "guard_walker_update",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.guard_walker_update without parameters in the schema ca"
+ },
+ {
+  "who": "nobody",
+  "fn": "handle_new_user",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.handle_new_user without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "i_am_suspended",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "nobody",
+  "fn": "is_operator",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "nobody",
+  "fn": "my_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "my_coverage",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "my_squad_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "my_stay_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "number_invoice",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.number_invoice without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "open_due_check_ins",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "post_stay_update",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "That update isn't yours"
+ },
+ {
+  "who": "nobody",
+  "fn": "prepare_coverage_request",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.prepare_coverage_request without parameters in the sche"
+ },
+ {
+  "who": "nobody",
+  "fn": "public_walker_profile",
+  "definer": false,
+  "status": 200,
+  "verdict": "by design",
+  "detail": "{\"bio\":\"\",\"handle\":\"e2e-walker\",\"boarding\":{\"night_cents\":4000,\"extra_pet_cents\":null},\"se"
+ },
+ {
+  "who": "nobody",
+  "fn": "reschedule_coverage",
+  "definer": false,
+  "status": 400,
+  "verdict": "refused",
+  "detail": "Not your booking"
+ },
+ {
+  "who": "nobody",
+  "fn": "set_updated_at",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.set_updated_at without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "squad_ids_of",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[\"c2a669fc-0e69-41ae-b4d8-92cad3db9f1b\"]"
+ },
+ {
+  "who": "nobody",
+  "fn": "squad_link_ended",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.squad_link_ended without parameters in the schema cache"
+ },
+ {
+  "who": "nobody",
+  "fn": "squad_overview",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "void_invoice_after",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.void_invoice_after without parameters in the schema cac"
+ },
+ {
+  "who": "nobody",
+  "fn": "void_invoice_before",
+  "definer": false,
+  "status": 404,
+  "verdict": "refused",
+  "detail": "Could not find the function public.void_invoice_before without parameters in the schema ca"
+ },
+ {
+  "who": "nobody",
+  "fn": "walk_client_ids",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[\"30a7956c-83cd-486a-86d9-297cb0f4c0b1\",\"715c8d45-6794-4b71-a305-4032ab573fa5\"]"
+ },
+ {
+  "who": "nobody",
+  "fn": "walk_walker_name",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "null"
+ },
+ {
+  "who": "nobody",
+  "fn": "walker_can_see_covered_photo",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "false"
+ },
+ {
+  "who": "nobody",
+  "fn": "walker_is_suspended",
+  "definer": false,
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "true"
+ },
+ {
+  "who": "nobody",
+  "fn": "walks_with_my_dogs",
+  "definer": false,
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "anon",
+  "fn": "[table] walker_rating_summary",
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[{\"walker_id\":\"56018e27-c5a7-4f4a-8b65-d8e44901a736\",\"rating_count\":1,\"avg_score\":4}]"
+ },
+ {
+  "who": "anon",
+  "fn": "[table] ratings",
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ },
+ {
+  "who": "nobody",
+  "fn": "[table] walker_rating_summary",
+  "status": 200,
+  "verdict": "LEAK",
+  "detail": "[{\"walker_id\":\"56018e27-c5a7-4f4a-8b65-d8e44901a736\",\"rating_count\":1,\"avg_score\":4}]"
+ },
+ {
+  "who": "nobody",
+  "fn": "[table] ratings",
+  "status": 200,
+  "verdict": "nothing",
+  "detail": "[]"
+ }
+]

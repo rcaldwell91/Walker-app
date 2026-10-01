@@ -13,7 +13,7 @@ export default async function MyPhotosPage() {
   // RLS returns photos of this owner's dogs and whole-group photos from their walks.
   const { data: photos } = await supabase
     .from("photos")
-    .select("id, storage_path, caption, taken_at, created_at, walk_id, dog:dogs(name), stay_update:stay_updates(stay_id)")
+    .select("id, storage_path, caption, taken_at, created_at, walk_id, dog:dogs!photos_dog_id_fkey(name), stay_update:stay_updates(stay_id)")
     .order("created_at", { ascending: false })
     .limit(300);
 

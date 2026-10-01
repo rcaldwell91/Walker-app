@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
 import { isValidTimeZone, isDateKey, mondayOf, zonedToUtc } from "@/lib/time";
 import { isSeriesDay, occurrencesBetween } from "@/lib/schedule";
 import { addDays, fmtDateKey } from "@/lib/time";
@@ -19,6 +20,7 @@ import { friendly } from "@/lib/errors";
  */
 async function followCovers(
   supabase: SupabaseClient,
+  actorId: string,
   booking: { id: string },
   day: string,
   change: { skipped: true } | { startsAt: Date; durationMin: number },
@@ -26,7 +28,10 @@ async function followCovers(
   fromName: string,
 ) {
   const skipped = "skipped" in change;
-  const { data } = await supabase.rpc("reschedule_coverage", {
+  // Service role only (0025): the signed-in walker is passed in, and the database
+  // checks they own the booking.
+  const { data } = await createServiceClient().rpc("reschedule_coverage", {
+    p_actor: actorId,
     p_booking: booking.id,
     p_occurs_on: day,
     p_starts_at: skipped ? null : change.startsAt.toISOString(),
@@ -150,7 +155,7 @@ export async function skipOccurrence(bookingId: string, day: string, tz: string)
     { booking_id: bookingId, walker_id: ok.user.id, occurs_on: day, skipped: true, moved_to: null, duration_min: null },
     { onConflict: "booking_id,occurs_on" },
   );
-  await followCovers(ok.supabase, ok.booking, day, { skipped: true }, tz, await myName(ok.supabase, ok.user.id));
+  await followCovers(ok.supabase, ok.user.id, ok.booking, day, { skipped: true }, tz, await myName(ok.supabase, ok.user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   revalidatePath(`/schedule/${bookingId}`);
@@ -183,7 +188,7 @@ export async function moveOccurrence(bookingId: string, day: string, _: ActionSt
     { onConflict: "booking_id,occurs_on" },
   );
   if (error) return { error: friendly(error) };
-  await followCovers(ok.supabase, ok.booking, day, { startsAt: movedTo, durationMin: d.duration_min }, d.tz, await myName(ok.supabase, ok.user.id));
+  await followCovers(ok.supabase, ok.user.id, ok.booking, day, { startsAt: movedTo, durationMin: d.duration_min }, d.tz, await myName(ok.supabase, ok.user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   redirect(`/schedule?week=${mondayOf(d.date)}`);
@@ -202,7 +207,7 @@ export async function clearOccurrenceChange(bookingId: string, day: string) {
     .eq("walker_id", user.id)
     .maybeSingle();
   const occ = b && isDateKey(day) ? occurrencesBetween([b], day, addDays(day, 1), tz)[0] : null;
-  if (b && occ) await followCovers(supabase, b, day, { startsAt: occ.at, durationMin: occ.durationMin }, tz, await myName(supabase, user.id));
+  if (b && occ) await followCovers(supabase, user.id, b, day, { startsAt: occ.at, durationMin: occ.durationMin }, tz, await myName(supabase, user.id));
   revalidatePath("/schedule");
   revalidatePath("/home");
   revalidatePath(`/schedule/${bookingId}`);

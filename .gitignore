@@ -9,3 +9,7 @@ out
 next-env.d.ts
 .DS_Store
 supabase/.temp
+supabase/.local.env
+supabase/tests/e2e/.state.json
+supabase/tests/e2e/.function-exposure-*.json
+supabase/.temp

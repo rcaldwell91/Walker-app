@@ -25,7 +25,7 @@ export default async function BoardingPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
-  await sendStayReminders(supabase, tz);
+  await sendStayReminders(supabase, user.id, tz);
   const today = dateKey(new Date(), tz);
   const month = /^\d{4}-\d{2}$/.test(sp.month ?? "") ? sp.month! : today.slice(0, 7);
   const first = `${month}-01`;

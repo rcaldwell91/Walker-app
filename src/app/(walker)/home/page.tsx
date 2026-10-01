@@ -14,7 +14,7 @@ export default async function TodayPage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const today = dateKey(new Date(), tz);
-  await sendStayReminders(supabase, tz);
+  await sendStayReminders(supabase, user.id, tz);
 
   const [{ bookings, exceptions }, { data: activeWalk }, { count: clientCount }, coverage, { data: othersWalks }] = await Promise.all([
     fetchBookingsForRange(supabase, today, addDays(today, 1), tz),

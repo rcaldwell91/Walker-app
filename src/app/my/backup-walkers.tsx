@@ -53,7 +53,7 @@ export function BackupWalkerList({ choices }: { choices: SquadChoice[] }) {
         <li key={`${c.client_id}-${c.coverage_walker_id}`}>
           <Card className="flex items-center justify-between gap-3" data-choice={c.handle} data-approved={c.approved ? "yes" : "no"}>
             <Face c={c} />
-            <ActionButton run={() => setCoverageApproval(c.client_id, c.coverage_walker_id, !c.approved)} variant={c.approved ? "secondary" : "primary"} className="min-h-11 w-24 px-3 text-sm" busyLabel="Saving…">
+            <ActionButton run={setCoverageApproval.bind(null, c.client_id, c.coverage_walker_id, !c.approved)} variant={c.approved ? "secondary" : "primary"} className="min-h-11 w-24 px-3 text-sm" busyLabel="Saving…">
               {c.approved ? "Revoke" : "Approve"}
             </ActionButton>
           </Card>
@@ -80,7 +80,7 @@ export function ApprovalPrompt({ c, walkerName }: { c: SquadChoice; walkerName: 
           </Button>
         </form>
         <span className="flex-1">
-          <ActionButton run={() => setCoverageApproval(c.client_id, c.coverage_walker_id, true)} className="w-full" busyLabel="Saving…">
+          <ActionButton run={setCoverageApproval.bind(null, c.client_id, c.coverage_walker_id, true)} className="w-full" busyLabel="Saving…">
             Approve
           </ActionButton>
         </span>

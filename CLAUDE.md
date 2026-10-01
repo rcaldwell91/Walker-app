@@ -81,6 +81,19 @@ Free and keyless for now. Each piece sits behind one file so Mapbox or Google ca
 - **Squad members see each other only through `squad_overview()`** (name, handle, photo, business name, service area, phone). Walker lookup is exact-handle only (`find_walker_by_handle`). Clients see their walker's squad through `client_squad_choices()`.
 - Covered walk reports: `/report/[id]` (regular walker) and `/my/walks/[id]` (client) both render `WalkReportView`.
 
+## Database functions are API endpoints
+
+Every function in `public` is callable at `/rest/v1/rpc/<name>` (0025). Postgres grants EXECUTE to PUBLIC by default, so a new function is open to everyone until you say otherwise. For each new function, decide its group and grant explicitly:
+
+- **Trigger functions:** no grants (triggers fire regardless).
+- **Helpers about the caller** (no argument, everything from `auth.uid()`; used in RLS policies): `grant execute … to authenticated` only. Never `anon`: a logged-out read of a table whose policy calls one is refused, which is fine.
+- **Helpers that take an ID:** if a policy needs it, grant to `authenticated` and make the function answer only what the caller may know (see `walk_client_ids`, `squad_ids_of`, `walker_is_suspended` in 0025). Otherwise don't grant it.
+- **Functions that change data for a person outside one RLS-checked action:** service role only, with the person passed in as `p_actor` from the server session (`claim_stay_reminders`, `reschedule_coverage`); call them with `createServiceClient()`.
+- **Public by design:** only `public_walker_profile` (anon).
+- Views over private tables are `security_invoker` with no direct grants; aggregates go through a function (see `walker_rating_summary`).
+- The RLS smoke test fails if anything but `public_walker_profile` is callable logged out, or a trigger or service-only function is callable by users. `supabase/tests/e2e/function-exposure.cjs` calls every function over REST on the local stack as a logged-out visitor and as a walker who owns nothing; it must report 0 LEAK.
+- From a server component, pass client components a bound server action (`action.bind(null, …)`), never an arrow function.
+
 ## Product standards in code
 
 - **Taps from the field go through `tap()`** (`src/lib/offline.ts`): with no signal a server action throws; `tap` turns that into one plain line ("No signal. Tap again…") shown where the person tapped, never an error page. Actions return `{ error }` instead of ignoring failures, and the screen shows ✓/"Saved"/"Sent" only after that came back OK.

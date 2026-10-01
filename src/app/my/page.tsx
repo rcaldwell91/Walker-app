@@ -13,7 +13,7 @@ import { sendStayReminders } from "@/lib/boarding-reminders";
 import { INVOICE_FIELDS, summarize } from "@/lib/billing";
 
 export default async function ClientHome() {
-  const { supabase, profile } = await requireRole("client");
+  const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
 
   const [{ data: clients }, { data: dogs }, { data: recentWalks }, { data: homework }] = await Promise.all([
@@ -39,7 +39,7 @@ export default async function ClientHome() {
   const overdue = open.some((i) => i.overdue);
   const asks = ((choices ?? []) as SquadChoice[]).filter((c) => c.asked && !c.approved);
   await notifyOpenedCheckIns(openCheckIns);
-  await sendStayReminders(supabase, tz);
+  await sendStayReminders(supabase, user.id, tz);
   const today = dateKey(new Date(), tz);
   const { data: stays } = await supabase
     .from("boarding_stays")

@@ -224,8 +224,25 @@ begin
   end if;
   if t ilike any (array['%555-PRIVATE%', '%secret-proof%', '%Secret Lane%', '%Key under%', '%owner@x.test%', '%Dexter%', '%a@x.test%'])
     then raise exception 'Public profile leaks private data: %', t; end if;
-  if exists (select 1 from walkers) or exists (select 1 from clients) or exists (select 1 from dogs) or exists (select 1 from profiles)
-    then raise exception 'Logged-out visitor can read private tables'; end if;
+end $$;
+-- Private tables: a logged-out visitor is refused (0025: the RLS helpers aren't
+-- callable without signing in) or sees nothing. Never a row.
+do $$
+declare t text; n int;
+begin
+  foreach t in array array['walkers', 'clients', 'dogs', 'profiles', 'walks', 'photos', 'ratings', 'invoices', 'boarding_stays', 'messages'] loop
+    begin
+      execute format('select count(*) from %I', t) into n;
+      if n > 0 then raise exception 'Logged-out visitor can read %', t; end if;
+    exception when insufficient_privilege then null; -- refused: fine
+    end;
+  end loop;
+  begin
+    perform 1 from walker_rating_summary;
+    raise exception 'SHOULD_FAIL';
+  exception when insufficient_privilege then null;
+    when others then if sqlerrm = 'SHOULD_FAIL' then raise exception 'Logged-out visitor can read the rating summary view'; end if; raise;
+  end;
 end $$;
 set local role authenticated;
 
@@ -807,16 +824,24 @@ do $$ begin
     if sqlerrm = 'SHOULD_FAIL' then raise exception 'Walker B ended walker A''s stay'; end if;
   end;
 end $$;
--- Reminders are claimed once: the stay ends in two days, so "ends tomorrow" fires for that date only once.
+-- Reminders (0025): service role only. A signed-in walker can't call it at all.
 select _as('00000000-0000-0000-0000-00000000000a');
 do $$ begin
-  if (select count(*) from claim_stay_reminders(current_date + 2)) <> 1 then raise exception 'Expected one "ends tomorrow" reminder'; end if;
-  if (select count(*) from claim_stay_reminders(current_date + 2)) <> 0 then raise exception 'A reminder was claimed twice'; end if;
+  begin
+    perform claim_stay_reminders('00000000-0000-0000-0000-00000000000a', current_date + 2);
+    raise exception 'SHOULD_FAIL';
+  exception when insufficient_privilege then null;
+    when others then if sqlerrm = 'SHOULD_FAIL' then raise exception 'A signed-in walker called claim_stay_reminders'; end if; raise;
+  end;
 end $$;
-select _as('00000000-0000-0000-0000-00000000000b');
+-- The server (service role) claims for the signed-in person: once, and only their stays.
+set local role service_role;
 do $$ begin
-  if (select count(*) from claim_stay_reminders(current_date)) <> 0 then raise exception 'Walker B claimed walker A''s reminders'; end if;
+  if (select count(*) from claim_stay_reminders('00000000-0000-0000-0000-00000000000b', current_date + 2)) <> 0 then raise exception 'Claimed walker A''s reminder for walker B'; end if;
+  if (select count(*) from claim_stay_reminders('00000000-0000-0000-0000-00000000000a', current_date + 2)) <> 1 then raise exception 'Expected one "ends tomorrow" reminder'; end if;
+  if (select count(*) from claim_stay_reminders('00000000-0000-0000-0000-00000000000a', current_date + 2)) <> 0 then raise exception 'A reminder was claimed twice'; end if;
 end $$;
+set local role authenticated;
 -- The walker's space (0022): their own clients read the rows; everyone else only
 -- through the public profile, which carries the photos and boarding rates.
 select _as('00000000-0000-0000-0000-00000000000a');
@@ -835,7 +860,10 @@ set local role anon;
 do $$
 declare p jsonb := public_walker_profile('walker-a');
 begin
-  if exists (select 1 from walker_space_photos) then raise exception 'Logged-out visitor reads the space photos table'; end if;
+  begin
+    if exists (select 1 from walker_space_photos) then raise exception 'Logged-out visitor reads the space photos table'; end if;
+  exception when insufficient_privilege then null; -- refused (0025): fine
+  end;
   if jsonb_array_length(p->'space_photos') <> 1 or (p->'boarding'->>'night_cents')::int <> 5000 then
     raise exception 'Public profile should show the space photo and boarding rate: %', p;
   end if;
@@ -939,13 +967,25 @@ do $$ begin
   exception when others then
     if sqlerrm = 'SHOULD_FAIL' then raise exception 'Suspended walker started a walk'; end if;
   end;
+  -- reschedule_coverage is service role only (0025): refused outright for a signed-in walker.
   begin
-    perform reschedule_coverage('40000000-0000-0000-0000-000000000001', current_date, now(), 60, true);
+    perform reschedule_coverage('00000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-000000000001', current_date, now(), 60, true);
     raise exception 'SHOULD_FAIL';
-  exception when others then
-    if sqlerrm = 'SHOULD_FAIL' then raise exception 'Suspended walker rescheduled coverage'; end if;
+  exception when insufficient_privilege then null;
+    when others then if sqlerrm = 'SHOULD_FAIL' then raise exception 'A signed-in walker called reschedule_coverage'; end if; raise;
   end;
 end $$;
+-- And the server can't do it on a suspended walker's behalf.
+set local role service_role;
+do $$ begin
+  begin
+    perform reschedule_coverage('00000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-000000000001', current_date, now(), 60, true);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm <> 'Not your booking' then raise exception 'Suspended walker rescheduled coverage (%)', sqlerrm; end if;
+  end;
+end $$;
+set local role authenticated;
 update clients set name = 'Hacked' where walker_id = '00000000-0000-0000-0000-00000000000a';
 update invoices set notes = 'Hacked' where walker_id = '00000000-0000-0000-0000-00000000000a';
 delete from dogs where walker_id = '00000000-0000-0000-0000-00000000000a';
@@ -981,6 +1021,42 @@ end $$;
 select _as('00000000-0000-0000-0000-00000000000c');
 do $$ begin
   if not exists (select 1 from clients) or not exists (select 1 from invoices) then raise exception 'Clients keep seeing their own data'; end if;
+end $$;
+
+-- reschedule_coverage (0025): the server moves a cover for the booking's own walker; anyone else is refused.
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into coverage_requests (id, booking_id, from_walker_id, to_walker_id, occurs_on, starts_at, tz, access_from, access_until, status) values
+  ('50000000-0000-0000-0000-000000000009', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
+   '00000000-0000-0000-0000-00000000000d', current_date + 30, now() + interval '30 days', 'UTC', now() + interval '29 days', now() + interval '31 days', 'open');
+set local role service_role;
+do $$ begin
+  begin
+    perform reschedule_coverage('00000000-0000-0000-0000-00000000000b', '40000000-0000-0000-0000-000000000001', current_date + 30, now() + interval '30 days 2 hours', 60, false);
+    raise exception 'SHOULD_FAIL';
+  exception when others then
+    if sqlerrm <> 'Not your booking' then raise exception 'Walker B rescheduled walker A''s cover (%)', sqlerrm; end if;
+  end;
+  if (select count(*) from reschedule_coverage('00000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-000000000001',
+        current_date + 30, now() + interval '30 days 2 hours', 60, false) where change = 'moved') <> 1 then
+    raise exception 'The booking''s own walker should be able to move the cover';
+  end if;
+end $$;
+
+-- Who may call which function (0025). Any new function must be placed on purpose.
+reset role;
+do $$
+declare f record; bad text := '';
+begin
+  for f in select p.oid, p.proname, format_type(p.prorettype, null) as ret from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.prokind = 'f' and p.proname not like '\_%' loop -- _x: this test's own helpers
+    if has_function_privilege('anon', f.oid, 'execute') and f.proname <> 'public_walker_profile' then bad := bad || ' anon:' || f.proname; end if;
+    if f.ret = 'trigger' and (has_function_privilege('authenticated', f.oid, 'execute') or has_function_privilege('anon', f.oid, 'execute')) then
+      bad := bad || ' trigger-callable:' || f.proname; end if;
+    if f.proname in ('claim_stay_reminders', 'reschedule_coverage') and has_function_privilege('authenticated', f.oid, 'execute') then
+      bad := bad || ' signed-in:' || f.proname; end if;
+  end loop;
+  if bad <> '' then raise exception 'Functions callable by the wrong people:%', bad; end if;
 end $$;
 
 reset role;
