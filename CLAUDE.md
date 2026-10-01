@@ -108,6 +108,8 @@ Every function in `public` is callable at `/rest/v1/rpc/<name>` (0025). Postgres
 - **New passwords are typed twice** (`useNewPassword`: "Type it again", its own eye). A mismatch isn't sent; the reserved line says "These don't match". Never on login.
 - **Phones are stored as E.164** (`+16025550123`) by `cleanPhone`; show them with `fmtPhone`, dial `tel:` with the stored value. Required for walkers (signup, Profile) and on client intake; a walker adding a client may leave it blank, so screens still handle no phone. Never say or imply we text anyone (No SMS).
 - **Handles are made from the name at signup** (`lyon`, `lyon-2`, …); walkers change it in Profile & account → "Your public page link". Don't ask for a handle at signup.
+- **Speed (docs/PERFORMANCE.md):** who's signed in comes from `getUser()`/`getSession()` in `src/lib/session.ts` (cached per request, token checked locally with `getClaims()`); never call `supabase.auth.getUser()` on a page. A page asks for all its data in one `Promise.all`; side work goes in `after()`. Every section has a `loading.tsx` (`PageSkeleton`) so a tap shows something at once. Server code runs in sfo1, next to the database (`vercel.json`).
+- **Records** (More → Records, `src/lib/records.ts`): incident reports now; add a kind with one line there and a page under `/records/<key>`.
 - **Business choices are walker settings** (`/settings`, 0024): boarding times, early pick-up billing, untagged photos, payment methods, tip amounts, ETA speed. Add new ones there, with a default matching today's behaviour.
 
 ## Testing never writes to the live project

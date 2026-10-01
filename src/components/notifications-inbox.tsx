@@ -8,13 +8,14 @@ import { fmtTime } from "@/lib/format";
  * Unread in-app notifications (the same things that were pushed). Ones that
  * point at this page are left out (the page already shows them) and count as read.
  */
-export async function NotificationsInbox({ supabase, tz, here }: { supabase: SupabaseClient; tz: string; here: string }) {
-  const { data: all } = await supabase
-    .from("notifications")
-    .select("id, title, body, url, created_at")
-    .is("read_at", null)
-    .order("created_at", { ascending: false })
-    .limit(20);
+export function fetchUnreadNotifications(supabase: SupabaseClient) {
+  return supabase.from("notifications").select("id, title, body, url, created_at").is("read_at", null).order("created_at", { ascending: false }).limit(20);
+}
+type Row = { id: string; title: string; body: string; url: string; created_at: string };
+
+/** Pass `rows` when the page already fetched them alongside its own data (one round trip fewer). */
+export async function NotificationsInbox({ supabase, tz, here, rows }: { supabase: SupabaseClient; tz: string; here: string; rows?: Row[] | null }) {
+  const all = rows !== undefined ? rows : (await fetchUnreadNotifications(supabase)).data;
   const shownHere = (all ?? []).filter((n) => n.url === here).map((n) => n.id);
   if (shownHere.length) await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", shownHere);
   const data = (all ?? []).filter((n) => n.url !== here).slice(0, 5);

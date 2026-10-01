@@ -8,10 +8,9 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
   const { dogs: preselect, park } = await searchParams;
   const { supabase, user } = await requireRole("walker", "operator");
 
-  const { data: active } = await supabase.from("walks").select("id").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle();
-  if (active) redirect(`/walk/${active.id}`);
-
-  const [{ data: clients }, { data: services }, { data: trails }] = await Promise.all([
+  // Everything this screen needs, asked for at once.
+  const [{ data: active }, { data: clients }, { data: services }, { data: trails }, { data: me }] = await Promise.all([
+    supabase.from("walks").select("id").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle(),
     supabase
       .from("clients")
       .select("id, name, color, group_label, lat, lng, walker_id, dogs(id, name, working_on, active)")
@@ -21,7 +20,9 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
       .order("name"),
     supabase.from("service_types").select("id, name, category, walker_id").order("sort_order"),
     supabase.from("trails").select("id, name, lat, lng, features").order("name"),
+    supabase.from("walkers").select("eta_mph").eq("id", user.id).maybeSingle(),
   ]);
+  if (active) redirect(`/walk/${active.id}`);
 
   const dogs = (clients ?? []).flatMap((c) =>
     (c.dogs ?? [])
@@ -42,7 +43,6 @@ export default async function NewWalkPage({ searchParams }: { searchParams: Prom
   // Walker's own service types win over platform defaults with the same key.
   const svc = (services ?? []).filter((s) => s.walker_id === user.id || s.walker_id === null);
 
-  const { data: me } = await supabase.from("walkers").select("eta_mph").eq("id", user.id).maybeSingle();
   return (
     <>
       <WalkSteps current={1} />

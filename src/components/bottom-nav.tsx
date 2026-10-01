@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type Tab = { href: string; label: string; icon: React.ReactNode; match?: (p: string) => boolean };
 
@@ -66,7 +67,7 @@ const icons = {
 };
 
 // The walker's More groups live under these paths, so "More" stays lit there.
-const MORE_PATHS = ["/more", "/money", "/hours", "/schedule", "/check-ins", "/squad", "/profile", "/coming-soon", "/billing", "/install", "/incidents", "/cover", "/boarding", "/settings"];
+const MORE_PATHS = ["/more", "/money", "/hours", "/schedule", "/check-ins", "/squad", "/profile", "/coming-soon", "/billing", "/install", "/incidents", "/records", "/cover", "/boarding", "/settings"];
 
 const walkerTabs: Tab[] = [
   { href: "/home", label: "Today", icon: icons.today, match: (p) => p === "/home" || p.startsWith("/report") },
@@ -84,18 +85,23 @@ const clientTabs: Tab[] = [
   { href: "/my/more", label: "More", icon: icons.more, match: (p) => p.startsWith("/my/more") || p.startsWith("/my/invoices") || p.startsWith("/my/intake") || p === "/install" },
 ];
 
-export function BottomNav({ role }: { role: "walker" | "client" }) {
+export function BottomNav({ role, walkHref }: { role: "walker" | "client"; walkHref?: string }) {
   const pathname = usePathname();
-  const tabs = role === "client" ? clientTabs : walkerTabs;
+  // Mid-walk the Walk tab goes straight to the walk in progress.
+  const tabs = role === "client" ? clientTabs : walkHref ? walkerTabs.map((t) => (t.href === "/walk/new" ? { ...t, href: walkHref } : t)) : walkerTabs;
+  // The tapped tab lights up at once, before its page has arrived.
+  const [tapped, setTapped] = useState<string | null>(null);
+  useEffect(() => setTapped(null), [pathname]);
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="Main">
       <ul className="mx-auto flex max-w-md">
         {tabs.map((t) => {
-          const active = t.match ? t.match(pathname) : pathname === t.href || pathname.startsWith(`${t.href}/`);
+          const active = tapped ? tapped === t.href : t.match ? t.match(pathname) : pathname === t.href || pathname.startsWith(`${t.href}/`);
           return (
             <li key={t.href} className="flex-1">
               <Link
                 href={t.href}
+                onClick={() => setTapped(t.href)}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-16 flex-col items-center justify-center gap-0.5 text-xs font-medium ${active ? "text-accent" : "text-muted"}`}
               >

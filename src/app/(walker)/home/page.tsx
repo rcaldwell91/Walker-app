@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { requireRole } from "@/lib/session";
 import { Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 import { fmtTime, firstName } from "@/lib/format";
@@ -7,30 +8,32 @@ import { addDays, dateKey, fmtDateKey } from "@/lib/time";
 import { fetchBookingsForRange, occurrencesBetween } from "@/lib/schedule";
 import { dayCoverage, fetchMyCoverage } from "@/lib/coverage";
 import { CoverBadge, CoveringCard, IncomingCoverCard } from "../cover-cards";
-import { NotificationsInbox } from "@/components/notifications-inbox";
+import { NotificationsInbox, fetchUnreadNotifications } from "@/components/notifications-inbox";
 import { sendStayReminders } from "@/lib/boarding-reminders";
 
 export default async function TodayPage() {
   const { supabase, user, profile } = await requireRole("walker", "operator");
   const tz = await getTimeZone();
   const today = dateKey(new Date(), tz);
-  await sendStayReminders(supabase, user.id, tz);
+  // "Boarding starts tomorrow" reminders are side work: sent after the page is on screen.
+  after(() => sendStayReminders(user.id, tz));
 
-  const [{ bookings, exceptions }, { data: activeWalk }, { count: clientCount }, coverage, { data: othersWalks }] = await Promise.all([
+  const [{ bookings, exceptions }, { data: activeWalk }, { count: clientCount }, coverage, { data: othersWalks }, { data: boarders }, { data: unread }] = await Promise.all([
     fetchBookingsForRange(supabase, today, addDays(today, 1), tz),
     supabase.from("walks").select("id, started_at").eq("walker_id", user.id).eq("status", "in_progress").maybeSingle(),
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("walker_id", user.id),
     fetchMyCoverage(supabase),
     // Walks by someone else with your dogs on them: covered walks.
     supabase.from("walks").select("id, walker_id, started_at").neq("walker_id", user.id),
+    supabase
+      .from("boarding_stays")
+      .select("id, stay_pets(dog:dogs(name)), stay_updates(day, posted_at)")
+      .eq("walker_id", user.id)
+      .eq("status", "booked")
+      .lte("start_day", today)
+      .gte("end_day", today),
+    fetchUnreadNotifications(supabase),
   ]);
-  const { data: boarders } = await supabase
-    .from("boarding_stays")
-    .select("id, stay_pets(dog:dogs(name)), stay_updates(day, posted_at)")
-    .eq("walker_id", user.id)
-    .eq("status", "booked")
-    .lte("start_day", today)
-    .gte("end_day", today);
   const todays = occurrencesBetween(bookings, today, addDays(today, 1), tz, exceptions).filter((o) => !o.skipped);
   const now = Date.now();
   const incoming = coverage.filter((r) => r.incoming && r.status === "open" && new Date(r.access_until).getTime() > now);
@@ -63,7 +66,7 @@ export default async function TodayPage() {
       )}
 
       {/* Below the main button, so clearing it never moves "Start a walk". */}
-      <NotificationsInbox supabase={supabase} tz={tz} here="/home" />
+      <NotificationsInbox supabase={supabase} tz={tz} here="/home" rows={unread} />
 
       {boarders?.length ? (
         <Card className="mb-4 flex flex-col gap-2" data-boarding-today>

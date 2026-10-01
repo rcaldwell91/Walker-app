@@ -57,9 +57,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Checks the sign-in token with the project's public key (no round trip to the
+  // login service), refreshing it first if it has expired.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? data.claims : null;
 
   const { pathname } = request.nextUrl;
 

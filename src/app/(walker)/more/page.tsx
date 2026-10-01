@@ -16,7 +16,7 @@ export default async function MorePage() {
       <PageTitle sub={profile?.full_name}>More</PageTitle>
       <NavList
         items={[
-          { href: "/clients", label: "Pets & clients", sub: "Everyone you walk for, their pets, incident reports" },
+          { href: "/clients", label: "Pets & clients", sub: "Everyone you walk for and their pets" },
           {
             href: "/money",
             label: "Money",
@@ -36,6 +36,7 @@ export default async function MorePage() {
             sub: "Walkers who can cover for you",
             badge: incoming ? <Badge>{incoming} asking</Badge> : undefined,
           },
+          { href: "/records", label: "Records", sub: "Incident reports" },
           { href: "/settings", label: "Business settings", sub: "Boarding times, early pick-ups, photos, how clients pay, tips" },
           { href: "/profile", label: "Profile & account", sub: "Public profile, notifications, appearance, home screen, background check, log out" },
           { href: "/coming-soon", label: "Coming soon", sub: "Alerts, forums, meetups, resources, marketplace" },

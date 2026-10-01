@@ -52,6 +52,7 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
     await supabase.from("walks").delete().eq("id", walk.id);
     return { error: "Couldn't add the pets to the walk. Try again." };
   }
+  revalidatePath("/", "layout"); // the Walk tab now opens this walk
   redirect(`/walk/${walk.id}`);
 }
 
@@ -238,13 +239,16 @@ export async function finishWalk(walkId: string, payload: WrapUpPayload): Promis
     p_ended_at: endedAt,
   });
   if (error) return { error: friendly(error, "Couldn't save the wrap-up. Tap Finish again.") };
-  if (result === "already done") redirect(`/walk/${walkId}/done`);
+  if (result === "already done") {
+    revalidatePath("/", "layout");
+    redirect(`/walk/${walkId}/done`);
+  }
 
   // Report ready: owners get it; on a covered walk, so does the pets' own walker.
   const { owners, otherWalkers } = await walkAudience(walkId);
   await notify(owners, { kind: "report", title: "Walk report ready", body: summary?.slice(0, 140) ?? "See how the walk went.", url: `/my/walks/${walkId}` });
   await notify(otherWalkers, { kind: "report", title: "Covered walk report ready", body: "See how the covered walk went.", url: `/report/${walkId}` });
-  revalidatePath("/home");
+  revalidatePath("/", "layout"); // Today, and the Walk tab back to "Start a walk"
   redirect(`/walk/${walkId}/done`);
 }
 

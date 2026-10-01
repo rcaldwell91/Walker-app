@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/session";
-import { Badge, Card, Empty, LinkButton, NavList, PageTitle, SectionTitle } from "@/components/ui";
+import { Badge, Card, Empty, LinkButton, PageTitle } from "@/components/ui";
 
 export default async function PetsAndClientsPage() {
   const { supabase, user } = await requireRole("walker", "operator");
-  const [{ data: clients }, { data: unreadRows }, { count: incidents }] = await Promise.all([
+  const [{ data: clients }, { data: unreadRows }] = await Promise.all([
     supabase
       .from("clients")
       .select("id, name, status, color, group_label, profile_id, dogs(id, name, breed, active)")
@@ -12,7 +12,6 @@ export default async function PetsAndClientsPage() {
       .neq("status", "archived")
       .order("name"),
     supabase.from("messages").select("client_id, sender_id").is("read_at", null).neq("sender_id", user.id),
-    supabase.from("incidents").select("id", { count: "exact", head: true }).eq("walker_id", user.id),
   ]);
   // Unread = sent by the client themselves.
   const unreadFor = (c: { id: string; profile_id: string | null }) =>
@@ -70,8 +69,6 @@ export default async function PetsAndClientsPage() {
         Add a client
       </LinkButton>
 
-      <SectionTitle>Records</SectionTitle>
-      <NavList items={[{ href: "/incidents", label: "Incident reports", sub: incidents ? `${incidents} on file` : "None filed" }]} />
     </>
   );
 }

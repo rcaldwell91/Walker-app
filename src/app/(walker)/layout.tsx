@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/session";
+import { getUser, requireRole } from "@/lib/session";
 import { BottomNav } from "@/components/bottom-nav";
 import { TimeZoneProvider } from "@/components/timezone-context";
 import { getTimeZone } from "@/lib/timezone";
@@ -10,8 +10,16 @@ import { PendingPhotoSender } from "@/lib/photo-queue";
 import { PasswordNotice } from "@/components/password-notice-slot";
 
 export default async function WalkerLayout({ children }: { children: React.ReactNode }) {
-  const { supabase, user, profile } = await requireRole("walker", "operator");
-  const { data: me } = await supabase.from("walkers").select("status").eq("id", user.id).maybeSingle();
+  // The profile and the walker's status are fetched together, not one after the other.
+  const signedIn = await getUser();
+  // Also: is a walk in progress? Then the Walk tab opens it directly, mid-walk, with no detour.
+  const [{ supabase, user, profile }, { data: me }, { data: activeWalk }] = await Promise.all([
+    requireRole("walker", "operator"),
+    signedIn ? signedIn.supabase.from("walkers").select("status").eq("id", signedIn.user.id).maybeSingle() : Promise.resolve({ data: null }),
+    signedIn
+      ? signedIn.supabase.from("walks").select("id").eq("walker_id", signedIn.user.id).eq("status", "in_progress").limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
   if (profile?.role === "walker" && me?.status === "suspended") {
     return (
       <div className="mx-auto max-w-md px-4 pt-16 text-center" data-suspended>
@@ -41,7 +49,7 @@ export default async function WalkerLayout({ children }: { children: React.React
         <PasswordNotice supabase={supabase} userId={user.id} changeHref="/profile/password" />
         {children}
       </div>
-      <BottomNav role="walker" />
+      <BottomNav role="walker" walkHref={activeWalk ? `/walk/${activeWalk.id}` : undefined} />
     </TimeZoneProvider>
   );
 }

@@ -74,3 +74,68 @@ Everything below was made by test scripts, against Test Walker, Test Client (Rex
 
 - **Database tests** run on a local Postgres (`supabase/tests/01_rls_smoke.sql`). They never touched the live project.
 - **Browser tests** now run against a local Supabase started in Docker (`supabase start`), not the live project. If a live run is ever unavoidable, it uses separate logins with `+e2e` in the email and puts `[test]` in names, so every row is identifiable.
+
+## Deletion plan, Oct 1 2026 (not run yet — waiting on Robert)
+
+Robert confirmed John, Spot, the "Hey" message and the invite link are on his new walker account
+(Lyon Caldwell, robertcaldwell91+walker@gmail.com) and asked for the test data to go.
+
+**Delete:** the logins Test Walker (`859fc87a…`), Second Walker (`3cfbde0b…`), Test Client (`959f259f…`) and
+everything they own. No throwaway `@e2e.test` accounts ever reached the live project (5 logins in total).
+**Keep:** Lyon Caldwell (`48548bd6…`), the operator (`6201acb5…`), John, Spot, the message and the invite link.
+
+Method: messages and ratings inside the two test walkers' accounts first (they point at people with
+"no action", which blocks deleting the person), then the three logins; everything else follows by cascade.
+
+Predicted rows (from who owns each row) vs the dry run (Oct 1, rolled back):
+
+| Table | Predicted | Dry run |
+|---|---|---|
+| auth.users | 3 | 3 |
+| profiles | 3 | 3 |
+| walkers | 2 | 2 |
+| clients (Test Client) | 1 | 1 |
+| dogs (Rex) | 1 | 1 |
+| walks | 14 | 14 |
+| walk_dogs | 14 | 14 |
+| walk_events | 44 | 44 |
+| gps_points | 38 | 38 |
+| bookings | 2 | 2 |
+| booking_dogs | 2 | 2 |
+| booking_exceptions | 3 | 3 |
+| coverage_requests | 3 | 3 |
+| coverage_approvals | 1 | 1 |
+| coverage_approval_asks | 1 | 1 |
+| squad_links | 1 | 1 |
+| boarding_stays | 4 | 4 |
+| stay_pets | 4 | 4 |
+| stay_updates | 3 | 3 |
+| stay_update_logs | 8 | 8 |
+| photos | 5 | 5 |
+| photo_pets | 3 | 3 |
+| pet_scores | 16 | 16 |
+| dog_notes | 1 | 1 |
+| invoices | 6 | 6 |
+| invoice_lines | 16 | 16 |
+| payments | 3 | 3 |
+| ratings | 2 | 2 |
+| tips | 1 | 1 |
+| messages | 12 | 12 |
+| check_ins | 2 | 2 |
+| client_invites (Test Client's) | 1 | 1 |
+| suggestions | 1 | 1 |
+| trails (Test Ridge Trail, Test Park) | 2 | 2 |
+| walker_services | 2 | 2 |
+| notifications | 39 | 39 |
+| **not predicted:** auth.identities | — | 3 |
+| **not predicted:** auth.sessions | — | 112 |
+| **not predicted:** auth.refresh_tokens | — | 114 |
+
+The three unpredicted rows are the three test logins' own sign-in records (3 of 5 identities, 112 of 115
+sessions, 114 of 117 refresh tokens; the rest belong to the kept accounts and were untouched). Under the
+"any difference: stop" rule the delete was not run. Every kept item was still there in the dry run.
+
+Not touched by the delete: the 6 shared default service types (no owner), Lyon's push subscription.
+**Stored files** (16: avatars, background-check PDFs, walk and stay photos, all under the test walkers'
+folders) can't be removed by database command (Supabase blocks it); they go through the storage API with
+the service key after the rows are gone.

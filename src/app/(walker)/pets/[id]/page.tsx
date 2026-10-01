@@ -82,7 +82,7 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
 
       {(dog.incidents ?? []).length ? (
         <>
-          <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Incidents</h2>
+          <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted" data-pet-incidents>Incidents</h2>
           <ul className="flex flex-col gap-2">
             {dog.incidents.map((i) => (
               <li key={i.id}>
@@ -94,6 +94,9 @@ export default async function DogPage({ params }: { params: Promise<{ id: string
               </li>
             ))}
           </ul>
+          <Link href="/records/incidents" className="mt-1 block min-h-11 py-2 text-sm text-accent underline" data-all-incidents>
+            All incident reports
+          </Link>
         </>
       ) : null}
       <BackBar href={client ? `/clients/${client.id}` : "/clients"} label={client?.name ?? "Pets & clients"} />

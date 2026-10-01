@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import Link from "next/link";
 import { requireRole } from "@/lib/session";
 import { getTimeZone } from "@/lib/timezone";
@@ -39,7 +40,7 @@ export default async function ClientHome() {
   const overdue = open.some((i) => i.overdue);
   const asks = ((choices ?? []) as SquadChoice[]).filter((c) => c.asked && !c.approved);
   await notifyOpenedCheckIns(openCheckIns);
-  await sendStayReminders(supabase, user.id, tz);
+  after(() => sendStayReminders(user.id, tz)); // side work, after the page is on screen
   const today = dateKey(new Date(), tz);
   const { data: stays } = await supabase
     .from("boarding_stays")
