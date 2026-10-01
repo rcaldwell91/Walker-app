@@ -75,7 +75,7 @@ Everything below was made by test scripts, against Test Walker, Test Client (Rex
 - **Database tests** run on a local Postgres (`supabase/tests/01_rls_smoke.sql`). They never touched the live project.
 - **Browser tests** now run against a local Supabase started in Docker (`supabase start`), not the live project. If a live run is ever unavoidable, it uses separate logins with `+e2e` in the email and puts `[test]` in names, so every row is identifiable.
 
-## Deletion plan, Oct 1 2026 (not run yet — waiting on Robert)
+## Deletion, Oct 1 2026 — done
 
 Robert confirmed John, Spot, the "Hey" message and the invite link are on his new walker account
 (Lyon Caldwell, robertcaldwell91+walker@gmail.com) and asked for the test data to go.
@@ -139,3 +139,24 @@ Not touched by the delete: the 6 shared default service types (no owner), Lyon's
 **Stored files** (16: avatars, background-check PDFs, walk and stay photos, all under the test walkers'
 folders) can't be removed by database command (Supabase blocks it); they go through the storage API with
 the service key after the rows are gone.
+
+### Result (run Oct 1 2026, after Robert's written go-ahead)
+
+Robert approved the delete including the 229 sign-in records. It ran as one transaction that compared every
+table's removed-row count with the dry run above and would have rolled back on any difference. It matched
+on every table and committed. Removed: 3 logins, 3 identities, 112 sessions, 114 refresh tokens, and all the
+app rows in the table above (14 walks, 6 invoices, 16 invoice lines, 3 payments, 4 stays, 3 coverage requests,
+2 ratings, 1 tip, 12 messages, Test Client, Rex, 2 trails, 39 notifications, …).
+
+Stored files: 16 removed through the storage API (5 avatars, 5 background-check PDFs, 6 walk/stay photos).
+0 files left in storage.
+
+Checks afterwards:
+- The operator (robertcaldwell91@gmail.com), Lyon Caldwell (robertcaldwell91+walker@gmail.com, handle
+  lyon-caldwell), John, Spot, John's invite link (expires Oct 8) and the "Hey" message are byte-for-byte the
+  same as before the delete (row fingerprints compared before and after).
+- No column anywhere in the public, auth or storage schemas (454 checked) still holds any of the three deleted
+  account IDs, and none holds their emails, their names, or "[test]".
+
+What's left in the live project: 2 logins (operator, Lyon Caldwell), 1 client (John), 1 pet (Spot), 1 message,
+1 invite link, the 6 shared default service types, and Lyon's push subscription.
