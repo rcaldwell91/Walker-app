@@ -45,16 +45,16 @@ export function IntakeForm({
   const [dogs, setDogs] = useState<Dog[]>(initialDogs.length ? initialDogs : [{ name: "" }]);
 
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form noValidate action={action} className="flex flex-col gap-6">
       <FormDraft id={`intake:${client.id}`} />
       <input type="hidden" name="client_id" value={client.id} />
 
       <Card className="flex flex-col gap-4">
-        <h2 className="font-medium">You</h2>
-        <Field label="Phone">
+        <h2 className="font-medium">Your details</h2>
+        <Field label="Phone" hint="So your walker can reach you.">
           <Input name="phone" type="tel" defaultValue={client.phone ?? ""} autoComplete="tel" />
         </Field>
-        <Field label="Address">
+        <Field label="Address" hint="Where your walker picks up your pet.">
           <Input name="address_line" defaultValue={client.address_line ?? ""} autoComplete="street-address" />
         </Field>
         <Field label="City">
@@ -63,7 +63,7 @@ export function IntakeForm({
         <Field label="Emergency contact" hint="Name and number of someone we can call if we can't reach you.">
           <Input name="emergency_contact" defaultValue={client.emergency_contact ?? ""} />
         </Field>
-        <Field label="Getting in" hint="Keys, lockbox code, gate, alarm. Only your walker sees this.">
+        <Field label="How to get in" hint="Keys, lockbox code, gate, alarm. Only your walker sees this.">
           <Textarea name="home_access_notes" defaultValue={client.home_access_notes ?? ""} />
         </Field>
       </Card>
@@ -73,7 +73,7 @@ export function IntakeForm({
           <h2 className="font-medium">{d.name || `Pet ${i + 1}`}</h2>
           {d.id ? <input type="hidden" name={`dog[${i}][id]`} value={d.id} /> : null}
           <Field label="Name">
-            <Input name={`dog[${i}][name]`} defaultValue={d.name} required />
+            <Input name={`dog[${i}][name]`} defaultValue={d.name} autoCapitalize="words" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Breed">
@@ -81,31 +81,31 @@ export function IntakeForm({
             </Field>
             <Field label="Sex">
               <Select name={`dog[${i}][sex]`} defaultValue={d.sex ?? ""}>
-                <option value="">—</option>
+                <option value="">Pick one</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="male_neutered">Male (neutered)</option>
                 <option value="female_spayed">Female (spayed)</option>
               </Select>
             </Field>
-            <Field label="Birthday">
+            <Field label="Birthday" hint="A guess is fine.">
               <Input name={`dog[${i}][birthdate]`} type="date" defaultValue={d.birthdate ?? ""} />
             </Field>
             <Field label="Weight (lbs)">
-              <Input name={`dog[${i}][weight_lbs]`} type="number" step="0.5" defaultValue={d.weight_lbs ?? ""} />
+              <Input name={`dog[${i}][weight_lbs]`} inputMode="decimal" defaultValue={d.weight_lbs ?? ""} placeholder="e.g. 40" />
             </Field>
           </div>
-          <Field label="Vet">
-            <Input name={`dog[${i}][vet_name]`} defaultValue={d.vet_name ?? ""} placeholder="Clinic name" />
+          <Field label="Vet clinic">
+            <Input name={`dog[${i}][vet_name]`} defaultValue={d.vet_name ?? ""} placeholder="e.g. Glen Park Animal Hospital" />
           </Field>
           <Field label="Vet phone">
             <Input name={`dog[${i}][vet_phone]`} type="tel" defaultValue={d.vet_phone ?? ""} />
           </Field>
-          <Field label="Medications">
+          <Field label="Medications" hint="Name, dose and when. Leave blank if none.">
             <Input name={`dog[${i}][medications]`} defaultValue={d.medications ?? ""} />
           </Field>
-          <Field label="Allergies">
-            <Input name={`dog[${i}][allergies]`} defaultValue={d.allergies ?? ""} />
+          <Field label="Allergies" hint="Food or anything else. Leave blank if none.">
+            <Input name={`dog[${i}][allergies]`} defaultValue={d.allergies ?? ""} placeholder="e.g. chicken" />
           </Field>
           <Field label="Anything your walker should know" hint="Reactive to bikes? Pulls? Scared of trucks? Loves squirrels? Tap the mic and just talk.">
             <VoiceInput name={`dog[${i}][quirks]`} defaultValue={d.quirks ?? ""} />

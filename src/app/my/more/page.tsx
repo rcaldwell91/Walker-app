@@ -14,7 +14,8 @@ import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
 import { cookies } from "next/headers";
 import { BackupWalkerList, type SquadChoice } from "../backup-walkers";
 
-export default async function MyMorePage() {
+export default async function MyMorePage({ searchParams }: { searchParams: Promise<{ password?: string }> }) {
+  const { password } = await searchParams;
   const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
   const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
@@ -56,6 +57,10 @@ export default async function MyMorePage() {
         <LinkButton href="/my/intake" variant="secondary" className="mt-3 w-full">
           Update your details and pets
         </LinkButton>
+        <LinkButton href="/my/password" variant="secondary" className="mt-2 w-full" data-change-password>
+          Change password
+        </LinkButton>
+        {password === "changed" ? <p className="mt-2 text-accent" role="status">Password changed.</p> : null}
       </Card>
 
       {stays?.length ? (
@@ -157,7 +162,7 @@ export default async function MyMorePage() {
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Appearance</h2>
       <ThemeToggle initial={isThemeChoice(themeCookie) ? themeCookie : "system"} />
 
-      <form action={logout} className="mt-8">
+      <form noValidate action={logout} className="mt-8">
         <button className="text-sm text-muted underline">Log out</button>
       </form>
     </>

@@ -78,7 +78,7 @@ export default async function StaySummaryPage({ params, searchParams }: { params
 
       <div className="mt-3 flex flex-col gap-2">
         {stay.status === "booked" ? (
-          <form action={endStay.bind(null, id)}>
+          <form noValidate action={endStay.bind(null, id)}>
             <Button className="h-14 w-full text-lg" data-end-stay>
               Picked up: end the stay
             </Button>
@@ -86,7 +86,7 @@ export default async function StaySummaryPage({ params, searchParams }: { params
           </form>
         ) : null}
         {stay.status === "done" ? (
-          <form action={billStay.bind(null, id)}>
+          <form noValidate action={billStay.bind(null, id)}>
             <Button className="h-14 w-full text-lg" data-bill-stay>
               {invoice ? `Open invoice #${invoice.number}` : "Bill this stay"}
             </Button>

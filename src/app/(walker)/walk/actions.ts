@@ -45,7 +45,7 @@ export async function startWalk(_: ActionState, form: FormData): Promise<ActionS
     })
     .select("id")
     .single();
-  if (error || !walk) return { error: error?.message ?? "Couldn't start" };
+  if (error || !walk) return { error: friendly(error, "Couldn't start the walk. Try again.") };
 
   const { error: dErr } = await supabase.from("walk_dogs").insert(dogIds.map((dog_id) => ({ walk_id: walk.id, dog_id })));
   if (dErr) {

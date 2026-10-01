@@ -15,7 +15,7 @@ export function AddDogForm({ clientId }: { clientId: string }) {
     );
   }
   return (
-    <form action={action} className="flex flex-col gap-1">
+    <form noValidate action={action} className="flex flex-col gap-1">
       <div className="flex gap-2">
         <Input name="name" placeholder="Pet's name" autoFocus required />
         <Button type="submit" disabled={pending} className="w-24 shrink-0">

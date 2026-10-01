@@ -84,7 +84,7 @@ export default async function HoursPage() {
                   </span>
                   {t.note ? <span className="block text-sm text-muted">{t.note}</span> : null}
                 </span>
-                <form action={removeTimeOff.bind(null, t.id)}>
+                <form noValidate action={removeTimeOff.bind(null, t.id)}>
                   <button className="min-h-11 px-2 text-sm text-muted underline">Remove</button>
                 </form>
               </Card>

@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { requestReset } from "../actions";
 import { Button, Field, FormStatus, Input, PageTitle } from "@/components/ui";
 
 export default function ForgotPage() {
   const [state, action, pending] = useActionState(requestReset, undefined);
+  const [email, setEmail] = useState("");
   return (
     <main className="mx-auto max-w-md px-4 py-10">
       <PageTitle sub="We'll email you a link to set a new one.">Forgot your password?</PageTitle>
-      <form action={action} className="flex flex-col gap-4">
+      <form action={action} noValidate className="flex flex-col gap-4">
         <Field label="Email">
-          <Input name="email" type="email" autoComplete="email" required />
+          <Input name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Button type="submit" disabled={pending}>
           {pending ? "Sending…" : "Email me a link"}

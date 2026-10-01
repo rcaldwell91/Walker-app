@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useActionState } from "react";
+import { Suspense, useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { login } from "../actions";
-import { Button, ErrorText, Field, Input, PageTitle } from "@/components/ui";
+import { Button, Field, FormStatus, Input, PageTitle } from "@/components/ui";
+import { PasswordInput } from "@/components/password";
 
 export default function LoginPage() {
   return (
@@ -17,6 +18,8 @@ export default function LoginPage() {
 function LoginForm() {
   const params = useSearchParams();
   const [state, action, pending] = useActionState(login, undefined);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   return (
     <main className="mx-auto max-w-md px-4 py-10">
       <PageTitle sub="Welcome back.">Log in</PageTitle>
@@ -27,21 +30,21 @@ function LoginForm() {
           Check your email to confirm your account, then log in.
         </p>
       ) : null}
-      <form action={action} className="flex flex-col gap-4">
+      <form action={action} noValidate className="flex flex-col gap-4">
         <input type="hidden" name="next" value={params.get("next") ?? ""} />
         <Field label="Email">
-          <Input name="email" type="email" autoComplete="email" required />
+          <Input name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} data-email />
         </Field>
         <Field label="Password">
-          <Input name="password" type="password" autoComplete="current-password" required />
+          <PasswordInput name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} data-password />
         </Field>
         <Link href="/forgot" className="-mt-2 self-start py-2 text-sm text-accent underline">
           Forgot password?
         </Link>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="h-12" data-submit>
           {pending ? "Logging in…" : "Log in"}
         </Button>
-        <ErrorText>{state?.error}</ErrorText>
+        <FormStatus error={state?.error} />
       </form>
       <p className="mt-6 text-sm text-muted">
         New walker?{" "}

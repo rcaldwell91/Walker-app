@@ -260,7 +260,7 @@ function AddParkForm({ at, onDone }: { at: LatLng; onDone: (savedId?: string) =>
   }, [state]);
   return (
     <Card>
-      <form action={action} className="flex flex-col gap-3" data-add-park>
+      <form noValidate action={action} className="flex flex-col gap-3" data-add-park>
         <p className="font-medium">Add a park or trail here</p>
         <input type="hidden" name="lat" value={at.lat} />
         <input type="hidden" name="lng" value={at.lng} />
@@ -358,7 +358,7 @@ function AddressSearch({ onFound }: { onFound: (at: LatLng) => void }) {
   const [pending, start] = useTransition();
   return (
     <Card>
-      <form
+      <form noValidate
         className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault();

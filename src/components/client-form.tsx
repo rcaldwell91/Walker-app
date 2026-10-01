@@ -34,7 +34,7 @@ export function ClientForm({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form noValidate action={formAction} className="flex flex-col gap-4">
       <FormDraft id={draftId} />
       <Field label="Client name">
         <Input name="name" defaultValue={initial.name ?? ""} required autoFocus />

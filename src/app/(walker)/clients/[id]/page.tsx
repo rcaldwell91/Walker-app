@@ -92,7 +92,7 @@ export default async function ClientDetailPage({
           {inviteUrl ? (
             <InviteLink url={inviteUrl} />
           ) : (
-            <form action={regenerateInvite.bind(null, client.id)}>
+            <form noValidate action={regenerateInvite.bind(null, client.id)}>
               <button className="text-accent underline">Make a new link</button>
             </form>
           )}
@@ -157,7 +157,7 @@ export default async function ClientDetailPage({
           <span className="text-muted"> · {cents(unbilledTotal)} not invoiced yet</span>
         </p>
         {unbilledTotal ? (
-          <form action={billClientNow.bind(null, client.id)}>
+          <form noValidate action={billClientNow.bind(null, client.id)}>
             <Button type="submit" variant="secondary" className="w-full">
               Bill now ({cents(unbilledTotal)})
             </Button>
@@ -204,7 +204,7 @@ export default async function ClientDetailPage({
                 ) : client.status !== "active" ? (
                   <span className="text-xs text-muted">Once they join</span>
                 ) : (
-                  <form action={askClientApproval.bind(null, client.id, m.walker_id)}>
+                  <form noValidate action={askClientApproval.bind(null, client.id, m.walker_id)}>
                     <Button type="submit" variant="secondary" className="px-3 text-sm">
                       Ask for approval
                     </Button>

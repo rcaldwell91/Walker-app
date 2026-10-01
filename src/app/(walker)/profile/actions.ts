@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase/server";
 import { friendly } from "@/lib/errors";
+import { HANDLE_RE, cleanHandle, handleCandidate } from "@/lib/input";
 
 export type ProfileState = { error?: string; saved?: number } | undefined;
 
@@ -35,7 +37,7 @@ export async function saveProfile(_: ProfileState, form: FormData): Promise<Prof
       })
       .eq("id", user.id),
   ]);
-  if (pErr || wErr) return { error: (pErr ?? wErr)!.message };
+  if (pErr || wErr) return { error: friendly((pErr ?? wErr)!) };
   revalidatePath("/profile");
   return { saved: Date.now() };
 }
@@ -74,4 +76,26 @@ export async function removeSpacePhoto(id: string) {
   const { data } = await supabase.from("walker_space_photos").delete().eq("id", id).eq("walker_id", user.id).select("storage_path").maybeSingle();
   if (data?.storage_path) await supabase.storage.from("avatars").remove([data.storage_path]);
   revalidatePath("/profile");
+}
+
+export type HandleState = { error?: string; saved?: number; handle?: string } | undefined;
+
+/** "Your public page link": tidied as typed (capitals, spaces), checked, saved. */
+export async function saveHandle(_: HandleState, form: FormData): Promise<HandleState> {
+  const handle = cleanHandle(String(form.get("handle") ?? ""));
+  if (handle.length < 3) return { error: "Use at least 3 letters or numbers, like your name" };
+  if (!HANDLE_RE.test(handle)) return { error: "Use letters, numbers and dashes only" };
+  const { supabase, user } = await requireRole("walker", "operator");
+  const { error } = await supabase.from("walkers").update({ handle }).eq("id", user.id);
+  if (error?.code === "23505") {
+    // Public pages are public, so saying which link is free gives nothing away.
+    const { data: taken } = await createServiceClient().from("walkers").select("handle").like("handle", `${handle.slice(0, 26)}%`);
+    const used = new Set((taken ?? []).map((t) => t.handle));
+    let n = 2;
+    while (used.has(handleCandidate(handle, n))) n++;
+    return { error: `Someone already has that link. Try ${handleCandidate(handle, n)}` };
+  }
+  if (error) return { error: friendly(error) };
+  revalidatePath("/profile");
+  return { saved: Date.now(), handle };
 }

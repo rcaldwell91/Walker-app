@@ -26,7 +26,7 @@ export function HomeworkForm({ dogId }: { dogId: string }) {
     );
   }
   return (
-    <form action={action}>
+    <form noValidate action={action}>
       <FormDraft id={`homework:${dogId}`} done={state?.at} />
       <Card className="flex flex-col gap-3">
         <Field label="Work on">

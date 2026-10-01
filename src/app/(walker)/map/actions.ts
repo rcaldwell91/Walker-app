@@ -10,11 +10,11 @@ import { PARK_FEATURE_KEYS } from "@/lib/parks";
 export type ParkState = { error?: string; savedId?: string } | undefined;
 
 const parkSchema = z.object({
-  name: z.string().trim().min(1, "Give the park a name").max(120),
-  notes: z.string().max(2000).optional(),
-  address: z.string().max(300).optional(),
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
+  name: z.string({ required_error: "Type a name for the park" }).trim().min(1, "Type a name for the park").max(120, "Keep the park's name under 120 characters"),
+  notes: z.string().max(2000, "Keep the notes under 2,000 characters").optional(),
+  address: z.string().max(300, "Keep the address under 300 characters").optional(),
+  lat: z.coerce.number({ invalid_type_error: "Tap the map where the park is" }).min(-90, "Tap the map where the park is").max(90, "Tap the map where the park is"),
+  lng: z.coerce.number({ invalid_type_error: "Tap the map where the park is" }).min(-180, "Tap the map where the park is").max(180, "Tap the map where the park is"),
 });
 
 const featuresFrom = (form: FormData) => form.getAll("feature").map(String).filter((f) => PARK_FEATURE_KEYS.has(f));

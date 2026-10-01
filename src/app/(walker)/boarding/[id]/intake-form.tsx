@@ -21,7 +21,7 @@ export function StayIntakeForm({
 }) {
   const [state, action, pending] = useActionState(saveStayIntake.bind(null, stayId), undefined);
   return (
-    <form action={action} className="flex flex-col gap-3" data-stay-intake-form>
+    <form noValidate action={action} className="flex flex-col gap-3" data-stay-intake-form>
       <FormDraft id={`stay-intake:${stayId}`} done={state?.saved} />
       {pets.map((p) => (
         <Card key={p.id} className="flex flex-col gap-3">

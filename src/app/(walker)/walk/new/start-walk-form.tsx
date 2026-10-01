@@ -102,7 +102,7 @@ export function StartWalkForm({
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form noValidate action={action} className="flex flex-col gap-4">
       {groups.length ? (
         <div className="flex flex-wrap gap-2">
           {groups.map((g) => (

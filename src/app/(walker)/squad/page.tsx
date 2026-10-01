@@ -44,12 +44,12 @@ export default async function SquadPage() {
                 <Card className="flex flex-col gap-3" data-incoming={l.handle}>
                   <WalkerCard w={l} />
                   <div className="flex gap-2">
-                    <form action={respondToLink.bind(null, l.link_id, false)} className="flex-1">
+                    <form noValidate action={respondToLink.bind(null, l.link_id, false)} className="flex-1">
                       <Button type="submit" variant="secondary" className="w-full">
                         Decline
                       </Button>
                     </form>
-                    <form action={respondToLink.bind(null, l.link_id, true)} className="flex-1">
+                    <form noValidate action={respondToLink.bind(null, l.link_id, true)} className="flex-1">
                       <Button type="submit" className="w-full">
                         Accept
                       </Button>
@@ -70,7 +70,7 @@ export default async function SquadPage() {
               <li key={l.link_id}>
                 <Card className="flex items-center justify-between gap-3" data-member={l.handle}>
                   <WalkerCard w={l} />
-                  <form action={removeLink.bind(null, l.link_id)}>
+                  <form noValidate action={removeLink.bind(null, l.link_id)}>
                     <button type="submit" className="text-sm text-muted underline">
                       Remove
                     </button>
@@ -92,7 +92,7 @@ export default async function SquadPage() {
               <li key={l.link_id}>
                 <Card className="flex items-center justify-between gap-3">
                   <WalkerCard w={l} />
-                  <form action={removeLink.bind(null, l.link_id)}>
+                  <form noValidate action={removeLink.bind(null, l.link_id)}>
                     <button type="submit" className="text-sm text-muted underline">
                       Cancel
                     </button>

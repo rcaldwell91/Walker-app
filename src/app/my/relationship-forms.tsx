@@ -20,7 +20,7 @@ export function CheckInForm({ checkInId, walkerName }: { checkInId: string; walk
     <Card className="mb-4 border-accent" data-check-in="open">
       <p className="font-medium">Check-in</p>
       <p className="mb-3 text-sm text-muted">A few quick questions from {walkerName}. Takes a minute.</p>
-      <form action={action} className="flex flex-col gap-4">
+      <form noValidate action={action} className="flex flex-col gap-4">
         <FormDraft id={`checkin:${checkInId}`} done={state?.done} />
         <ScoreInput name="walker_satisfaction" label={`How happy are you with ${walkerName}?`} low="Not happy" high="Love it" />
         <ScoreInput name="app_satisfaction" label="How's this app working for you?" low="Frustrating" high="Easy" />
@@ -46,7 +46,7 @@ export function SuggestionForm({ walkerId, walkerName }: { walkerId: string; wal
   const [state, action, pending] = useActionState(sendSuggestion.bind(null, walkerId), undefined);
   const [signed, setSigned] = useState(false);
   return (
-    <form action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
+    <form noValidate action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
       <FormDraft id={`suggestion:${walkerId}`} done={state?.done} />
       <Field label={`Suggestion for ${walkerName}`}>
         <VoiceInput name="body" rows={3} />
@@ -70,7 +70,7 @@ export function RateWalkForm({ walkId, walkerName }: { walkId: string; walkerNam
   const [state, action, pending] = useActionState(rateWalk.bind(null, walkId), undefined);
   if (state?.done) return <p className="text-sm text-accent" role="status">Thanks for rating the walk.</p>;
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form noValidate action={action} className="flex flex-col gap-3">
       <ScoreInput name="score" label={`How was this walk with ${walkerName}?`} />
       <Field label="Comment (optional)">
         <Input name="comment" maxLength={1000} />
@@ -88,7 +88,7 @@ export function TipForm({ walkId, presets = [5, 10, 20] }: { walkId: string; pre
   const [amount, setAmount] = useState("");
   if (state?.done) return <TipThanks amount={Number(amount)} />;
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form noValidate action={action} className="flex flex-col gap-3">
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${presets.length}, minmax(0, 1fr))` }}>
         {presets.map((n) => (
           <button

@@ -97,26 +97,26 @@ export default async function AdminPage() {
 
                   <div className="flex flex-wrap gap-2">
                     {check === "pending" ? (
-                      <form action={setBackgroundCheck.bind(null, w.id, true)}>
+                      <form noValidate action={setBackgroundCheck.bind(null, w.id, true)}>
                         <Button type="submit" className="px-3 text-sm" data-verify>Verify</Button>
                       </form>
                     ) : check === "verified" ? (
-                      <form action={setBackgroundCheck.bind(null, w.id, false)}>
+                      <form noValidate action={setBackgroundCheck.bind(null, w.id, false)}>
                         <Button type="submit" variant="secondary" className="px-3 text-sm" data-unverify>Unverify</Button>
                       </form>
                     ) : null}
                     {w.status !== "active" ? (
-                      <form action={setWalkerStatus.bind(null, w.id, "active")}>
+                      <form noValidate action={setWalkerStatus.bind(null, w.id, "active")}>
                         <Button type="submit" variant="secondary" className="px-3 text-sm" data-activate>Reactivate</Button>
                       </form>
                     ) : null}
                     {w.status !== "paused" ? (
-                      <form action={setWalkerStatus.bind(null, w.id, "paused")}>
+                      <form noValidate action={setWalkerStatus.bind(null, w.id, "paused")}>
                         <Button type="submit" variant="secondary" className="px-3 text-sm" data-pause>Pause</Button>
                       </form>
                     ) : null}
                     {w.status !== "suspended" ? (
-                      <form action={setWalkerStatus.bind(null, w.id, "suspended")}>
+                      <form noValidate action={setWalkerStatus.bind(null, w.id, "suspended")}>
                         <Button type="submit" variant="danger" className="px-3 text-sm" data-suspend>Suspend</Button>
                       </form>
                     ) : null}

@@ -3,14 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { friendly } from "@/lib/errors";
+import { cleanHandle, HANDLE_RE } from "@/lib/input";
 
 export type FoundWalker = { id: string; handle: string; full_name: string; business_name: string; avatar_url: string | null };
 export type FindState = { error?: string; found?: FoundWalker; sent?: string } | undefined;
 
 /** Exact handle only. There's no list of walkers to browse. */
 export async function findWalker(_: FindState, form: FormData): Promise<FindState> {
-  const handle = String(form.get("handle") ?? "").trim().replace(/^@/, "").toLowerCase();
-  if (!/^[a-z0-9-]{3,30}$/.test(handle)) return { error: "Handles are 3–30 lowercase letters, numbers, or dashes" };
+  // "Jess Walks", "@jess-walks" or a pasted link (…/w/jess-walks) all work.
+  const handle = cleanHandle(String(form.get("handle") ?? ""));
+  if (!handle) return { error: "Type their handle, e.g. jess-walks" };
+  if (!HANDLE_RE.test(handle)) return { error: "Handles are at least 3 letters or numbers, e.g. jess-walks" };
   const { supabase } = await requireRole("walker");
   const { data } = await supabase.rpc("find_walker_by_handle", { p_handle: handle });
   const found = (data as FoundWalker[] | null)?.[0];

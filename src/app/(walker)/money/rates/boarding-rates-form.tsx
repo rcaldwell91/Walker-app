@@ -9,7 +9,7 @@ const dollars = (c: number | null) => (c == null ? "" : (c / 100).toFixed(2).rep
 export function BoardingRatesForm({ night, extra }: { night: number | null; extra: number | null }) {
   const [state, action, pending] = useActionState(saveBoardingRates, undefined);
   return (
-    <form action={action} className="flex flex-col gap-3" data-boarding-rates>
+    <form noValidate action={action} className="flex flex-col gap-3" data-boarding-rates>
       <Card className="grid grid-cols-2 gap-2">
         <Field label="Per night ($)" hint="First pet">
           <Input name="night" inputMode="decimal" defaultValue={dollars(night)} placeholder="e.g. 50" data-night-rate />

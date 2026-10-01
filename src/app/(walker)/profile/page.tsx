@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { requireRole } from "@/lib/session";
 import { logout } from "@/app/(auth)/actions";
 import { Button, Card, NavList, PageTitle, SectionTitle } from "@/components/ui";
@@ -7,11 +7,13 @@ import { BackBar } from "@/components/back-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
 import { ProfileForm } from "./profile-form";
+import { HandleForm } from "./handle-form";
 import { AvatarUpload, BackgroundCheckUpload } from "./uploads";
 import { SpacePhotos } from "./space-photos";
 import { NotificationSettings } from "@/components/notification-settings";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ password?: string }> }) {
+  const { password } = await searchParams;
   const { supabase, user, profile } = await requireRole("walker", "operator");
   const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
   const [{ data: walker }, { data: space }] = await Promise.all([
@@ -23,6 +25,8 @@ export default async function ProfilePage() {
     supabase.from("walker_space_photos").select("id, storage_path, caption").eq("walker_id", user.id).order("created_at"),
   ]);
   if (!walker) return <PageTitle>Profile not found</PageTitle>;
+  const host = (await headers()).get("host");
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || (host ? `https://${host}` : "")).replace(/\/$/, "");
 
   let proofUrl: string | null = null;
   if (walker.background_check_path) {
@@ -33,10 +37,16 @@ export default async function ProfilePage() {
   return (
     <>
       <PageTitle sub={profile?.full_name}>Profile & account</PageTitle>
+      {password === "changed" ? (
+        <p className="mb-3 text-sm text-accent" role="status">
+          Password changed.
+        </p>
+      ) : null}
 
       <NavList
         items={[
-          { href: `/w/${walker.handle}`, label: "Your public page", sub: `/w/${walker.handle} · what clients see` },
+          { href: `/w/${walker.handle}`, label: "Your public page", sub: "What clients see. Change its link below" },
+          { href: "/profile/password", label: "Change password" },
           { href: "/install", label: "Add to home screen", sub: "Open Walker like an app, full screen" },
           { href: "/billing", label: "Plan and fees" },
         ]}
@@ -53,6 +63,11 @@ export default async function ProfilePage() {
           userId={user.id}
           photos={(space ?? []).map((s) => ({ id: s.id, caption: s.caption, url: supabase.storage.from("avatars").getPublicUrl(s.storage_path).data.publicUrl }))}
         />
+      </Card>
+
+      <SectionTitle>Public page link</SectionTitle>
+      <Card>
+        <HandleForm handle={walker.handle} base={appUrl} />
       </Card>
 
       <SectionTitle>Profile</SectionTitle>
@@ -94,7 +109,7 @@ export default async function ProfilePage() {
         <BackgroundCheckUpload userId={user.id} hasFile={!!walker.background_check_path} />
       </Card>
 
-      <form action={logout} className="mt-8">
+      <form noValidate action={logout} className="mt-8">
         <Button type="submit" variant="secondary" className="w-full">
           Log out
         </Button>

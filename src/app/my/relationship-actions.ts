@@ -5,14 +5,21 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { notify } from "@/lib/notify";
 import { friendly } from "@/lib/errors";
+import { toNumber } from "@/lib/input";
 
 export type FormState = { error?: string; done?: number } | undefined;
 
-const score = z.coerce.number().int().min(1, "Pick 1 to 5").max(5, "Pick 1 to 5");
+/** A 1–5 tap. Nothing tapped (or anything odd) → one plain line saying what to tap. */
+const scoreOf = (msg: string) =>
+  z.preprocess(
+    (v) => toNumber(v) ?? undefined,
+    z.number({ required_error: msg, invalid_type_error: msg }).int(msg).min(1, msg).max(5, msg),
+  );
+const score = scoreOf("Tap a number from 1 to 5");
 
 const checkInSchema = z.object({
-  walker_satisfaction: score,
-  app_satisfaction: score,
+  walker_satisfaction: scoreOf("Tap a number from 1 to 5 for how happy you are with your walker"),
+  app_satisfaction: scoreOf("Tap a number from 1 to 5 for how the app is working"),
   dog_progress: z.string().trim().max(2000).optional(),
   at_home_training: z.string().trim().max(2000).optional(),
   requests: z.string().trim().max(2000).optional(),
@@ -87,7 +94,7 @@ export async function rateWalk(walkId: string, _: FormState, form: FormData): Pr
 }
 
 export async function leaveTip(walkId: string, _: FormState, form: FormData): Promise<FormState> {
-  const dollars = Number(String(form.get("amount") ?? "").replace(/[$,\s]/g, ""));
+  const dollars = toNumber(form.get("amount")) ?? NaN; // "$15", "15.00"
   if (!Number.isFinite(dollars) || dollars < 1) return { error: "Tips start at $1" };
   if (dollars > 500) return { error: "That's more than we can record as a tip" };
   const { supabase } = await requireRole("client");

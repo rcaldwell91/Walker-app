@@ -12,22 +12,24 @@ import { PET_BOARDING_FIELDS, STAY_BUTTONS, dayDiff, occupancy, stayPrice } from
 import { PET_SCORES } from "@/lib/pet-scores";
 import { askForFill, type VoiceResult } from "@/lib/voice-fill";
 import { friendly } from "@/lib/errors";
+import { toNumber } from "@/lib/input";
 
 export type BoardingState = { error?: string; saved?: number } | undefined;
 export type BookState = { error?: string; warning?: string } | undefined;
 
 function toCents(raw: FormDataEntryValue | null): number | null | "bad" {
-  const s = String(raw ?? "").trim().replace(/^\$/, "");
+  const s = String(raw ?? "").trim();
   if (!s) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n) || n < 0 || n > 100000) return "bad";
+  const n = toNumber(s); // "$150", "150.00", "1,200"
+  if (n == null || n < 0 || n > 100000) return "bad";
   return Math.round(n * 100);
 }
 
 /** How many pets the walker can board at once. */
 export async function setCapacity(_: BoardingState, form: FormData): Promise<BoardingState> {
-  const n = Number(String(form.get("capacity") ?? "").trim());
-  if (!Number.isInteger(n) || n < 0 || n > 100) return { error: "Enter a number of pets, like 3" };
+  const raw = toNumber(form.get("capacity")); // "3", "3 pets"
+  const n = raw == null ? NaN : Math.round(raw);
+  if (!Number.isInteger(n) || n < 0 || n > 100) return { error: "Type a number of pets from 0 to 100, like 3" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { error } = await supabase.from("walkers").update({ boarding_capacity: n }).eq("id", user.id);
   if (error) return { error: friendly(error) };
@@ -53,6 +55,13 @@ export async function saveBoardingRates(_: BoardingState, form: FormData): Promi
 
 const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** "9:00", "09:00:00" → "09:00"; anything else is left for timeRe to refuse. */
+function hhmm(raw: FormDataEntryValue | null): string {
+  const s = String(raw ?? "").trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : s;
+}
+
 /**
  * Book a stay. Over capacity or on days off, it comes back with a warning
  * first; "Book anyway" sends it again with force=1.
@@ -62,14 +71,16 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
   const petIds = form.getAll("pet").map(String).filter(Boolean);
   const startDay = String(form.get("start_day") ?? "");
   const endDay = String(form.get("end_day") ?? "");
-  const startTime = String(form.get("start_time") ?? "");
-  const endTime = String(form.get("end_time") ?? "");
+  const startTime = hhmm(form.get("start_time"));
+  const endTime = hhmm(form.get("end_time"));
   const notes = String(form.get("notes") ?? "").trim().slice(0, 1000) || null;
   const force = form.get("force") === "1";
   if (!clientId) return { error: "Pick the client" };
   if (!petIds.length) return { error: "Pick at least one pet" };
-  if (!isDateKey(startDay) || !isDateKey(endDay)) return { error: "Pick the drop-off and pick-up days" };
-  if (!timeRe.test(startTime) || !timeRe.test(endTime)) return { error: "Pick the drop-off and pick-up times" };
+  if (!isDateKey(startDay)) return { error: "Pick the drop-off day" };
+  if (!isDateKey(endDay)) return { error: "Pick the pick-up day" };
+  if (!timeRe.test(startTime)) return { error: "Pick the drop-off time" };
+  if (!timeRe.test(endTime)) return { error: "Pick the pick-up time" };
   const nights = dayDiff(startDay, endDay);
   if (nights < 1) return { error: "Pick-up is at least one night after drop-off" };
   if (nights > 365) return { error: "That's more than a year. Check the dates" };
@@ -143,7 +154,7 @@ export async function bookStay(_: BookState, form: FormData): Promise<BookState>
     })
     .select("id")
     .single();
-  if (error || !stay) return { error: error?.message ?? "Couldn't book it. Try again." };
+  if (error || !stay) return { error: friendly(error, "Couldn't book it. Try again.") };
   const { error: petErr } = await supabase.from("stay_pets").insert(pets.map((p) => ({ stay_id: stay.id, dog_id: p.id })));
   if (petErr) {
     await supabase.from("boarding_stays").delete().eq("id", stay.id);

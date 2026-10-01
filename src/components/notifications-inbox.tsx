@@ -23,7 +23,7 @@ export async function NotificationsInbox({ supabase, tz, here }: { supabase: Sup
     <Card className="mb-4" data-inbox={data.length}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-sm font-medium">Updates</p>
-        <form action={markNotificationsRead.bind(null, data.map((n) => n.id))}>
+        <form noValidate action={markNotificationsRead.bind(null, data.map((n) => n.id))}>
           <button type="submit" className="text-xs text-muted underline">
             Mark all read
           </button>

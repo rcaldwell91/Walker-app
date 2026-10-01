@@ -105,7 +105,7 @@ export default async function WalkerInvoicePage({
       {draft ? (
         <>
           <AddLineForm invoiceId={inv.id} today={today} />
-          <form action={sendInvoice.bind(null, inv.id)} className="mt-4">
+          <form noValidate action={sendInvoice.bind(null, inv.id)} className="mt-4">
             <Button type="submit" className="w-full py-4 text-lg" disabled={!lines.length}>
               Send to {one(inv.client)?.name?.split(" ")[0] ?? "client"} · {cents(s.total)}
             </Button>

@@ -25,7 +25,7 @@ export function ProfileForm({
   const cadences = CADENCES.includes(initial.check_in_cadence_days) ? CADENCES : [...CADENCES, initial.check_in_cadence_days].sort((a, b) => a - b);
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form noValidate action={action} className="flex flex-col gap-4">
       <FormDraft id="profile" done={state?.saved} />
       <Field label="Your name">
         <Input name="full_name" defaultValue={initial.full_name} required autoComplete="name" />

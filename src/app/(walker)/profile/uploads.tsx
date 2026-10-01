@@ -26,11 +26,12 @@ export function AvatarUpload({ userId, current, name }: { userId: string; curren
       if (upErr) throw upErr;
       const url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
       const res = await setAvatar(url);
-      if (res.error) throw new Error(res.error);
+      if (res.error) throw Object.assign(new Error(res.error), { plain: true });
       setPreview(url);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+      // Our own lines (already plain) show as they are; anything technical becomes one plain line.
+      setError(e instanceof Error && "plain" in e ? e.message : navigator.onLine ? "Upload failed. Try again." : "No signal. Try again when you have a bar.");
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -76,10 +77,11 @@ export function BackgroundCheckUpload({ userId, hasFile }: { userId: string; has
       const { error: upErr } = await createClient().storage.from("documents").upload(path, file, { contentType: file.type || undefined });
       if (upErr) throw upErr;
       const res = await setBackgroundCheck(path);
-      if (res.error) throw new Error(res.error);
+      if (res.error) throw Object.assign(new Error(res.error), { plain: true });
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+      // Our own lines (already plain) show as they are; anything technical becomes one plain line.
+      setError(e instanceof Error && "plain" in e ? e.message : navigator.onLine ? "Upload failed. Try again." : "No signal. Try again when you have a bar.");
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

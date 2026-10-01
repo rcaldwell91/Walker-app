@@ -180,10 +180,10 @@ export default async function MoneyPage() {
       </section>
 
       <Card className="mb-4">
-        <form action={setNetDays} className="flex items-end gap-2">
+        <form noValidate action={setNetDays} className="flex items-end gap-2">
           <label className="flex-1">
             <span className="mb-1 block text-sm font-medium">Invoices are due after</span>
-            <Input name="invoice_net_days" type="number" min={0} max={120} defaultValue={me?.invoice_net_days ?? 7} inputMode="numeric" />
+            <Input name="invoice_net_days" defaultValue={me?.invoice_net_days ?? 7} inputMode="numeric" />
           </label>
           <span className="pb-2 text-sm">days</span>
           <Button type="submit" variant="secondary">Save</Button>

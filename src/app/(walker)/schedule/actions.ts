@@ -13,6 +13,7 @@ import { notify } from "@/lib/notify";
 import { fmtDate, fmtTime } from "@/lib/format";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { friendly } from "@/lib/errors";
+import { toNumber } from "@/lib/input";
 
 /**
  * After one day of a booking changes, bring that day's covers along (the
@@ -54,12 +55,31 @@ async function followCovers(
 
 export type ActionState = { error?: string } | undefined;
 
+/** "9:00", "09:00:00" → "09:00". */
+const timeField = z.preprocess((v) => {
+  const s = String(v ?? "").trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : s;
+}, z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a time"));
+
+/** "30", " 45 ", "30 min" → whole minutes, 5 to 1,440. */
+const minutesField = z.preprocess(
+  (v) => {
+    const n = toNumber(v);
+    return n == null ? undefined : Math.round(n);
+  },
+  z
+    .number({ required_error: "Minutes: a number like 30", invalid_type_error: "Minutes: a number like 30" })
+    .min(5, "At least 5 minutes")
+    .max(1440, "At most 24 hours (1,440 minutes)"),
+);
+
 const bookingSchema = z.object({
   client_id: z.string().uuid("Pick a client"),
   service_type_id: z.string().uuid("Pick a service"),
   date: z.string().refine(isDateKey, "Pick a date"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Pick a time"),
-  duration_min: z.coerce.number().int().min(5, "At least 5 minutes").max(1440, "At most 24 hours"),
+  time: timeField,
+  duration_min: minutesField,
   repeat_until: z.string().optional(),
   tz: z.string().refine(isValidTimeZone, "Unknown time zone"),
 });
@@ -108,7 +128,7 @@ export async function saveBooking(id: string | null, _: ActionState, form: FormD
     if (delErr) return { error: friendly(delErr) };
   } else {
     const { data, error } = await supabase.from("bookings").insert(row).select("id").single();
-    if (error || !data) return { error: error?.message ?? "Couldn't save" };
+    if (error || !data) return { error: friendly(error, "Couldn't save. Try again.") };
     bookingId = data.id;
   }
   const { error: dogErr } = await supabase
@@ -163,8 +183,8 @@ export async function skipOccurrence(bookingId: string, day: string, tz: string)
 
 const moveSchema = z.object({
   date: z.string().refine(isDateKey, "Pick a date"),
-  time: z.string().regex(/^\d{2}:\d{2}$/, "Pick a time"),
-  duration_min: z.coerce.number().int().min(5).max(1440),
+  time: timeField,
+  duration_min: minutesField,
   tz: z.string().refine(isValidTimeZone, "Unknown time zone"),
 });
 

@@ -5,16 +5,20 @@ import { getTimeZone } from "@/lib/timezone";
 import { headers } from "next/headers";
 import { AppSetup } from "@/components/app-setup";
 import { platformFrom } from "@/lib/device";
+import { PasswordNotice } from "@/components/password-notice-slot";
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { profile } = await requireRole("client");
+  const { supabase, user, profile } = await requireRole("client");
   const tz = await getTimeZone();
   const platform = platformFrom((await headers()).get("user-agent"));
   const showGuide = !profile?.app_installed_at && !profile?.install_guide_dismissed_at;
   return (
     <TimeZoneProvider tz={tz}>
       <AppSetup platform={platform} showGuide={showGuide} />
-      <div className="mx-auto max-w-md px-4 pb-40 pt-6">{children}</div>
+      <div className="mx-auto max-w-md px-4 pb-40 pt-6">
+        <PasswordNotice supabase={supabase} userId={user.id} changeHref="/my/password" />
+        {children}
+      </div>
       <BottomNav role="client" />
     </TimeZoneProvider>
   );

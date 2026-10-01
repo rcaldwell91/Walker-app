@@ -9,7 +9,7 @@ import { FormDraft } from "@/components/form-draft";
 export function IncidentForm({ walkId, dogs }: { walkId: string | null; dogs: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState(fileIncident.bind(null, walkId), undefined);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form noValidate action={action} className="flex flex-col gap-4">
       <FormDraft id={`incident:${walkId ?? "none"}`} />
       <Field label="Pet">
         <Select name="dog_id" defaultValue={dogs.length === 1 ? dogs[0].id : ""}>

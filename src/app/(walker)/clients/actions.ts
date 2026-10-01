@@ -6,14 +6,18 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { saveClientCoordinates } from "@/lib/geo/geocode";
 import { friendly } from "@/lib/errors";
+import { cleanEmail, cleanPhone, looksLikeEmail, toNumber } from "@/lib/input";
 
 export type ActionState = { error?: string } | undefined;
 
 const NOT_ON_MAP = "Couldn't find that address on the map. Check it and save again.";
 
 const clientSchema = z.object({
-  name: z.string().min(1, "Enter the client's name"),
-  email: z.string().email("Enter a valid email").or(z.literal("")).optional(),
+  name: z.string({ required_error: "Type the client's name" }).trim().min(1, "Type the client's name"),
+  email: z.preprocess(
+    (v) => cleanEmail(String(v ?? "")),
+    z.string().refine((e) => e === "" || looksLikeEmail(e), "Email: type it like name@example.com, or leave it blank"),
+  ),
   phone: z.string().optional(),
   address_line: z.string().optional(),
   city: z.string().optional(),
@@ -23,11 +27,20 @@ const clientSchema = z.object({
   dog_name: z.string().optional(),
 });
 
+/** Brackets, dashes and spaces in a phone number are fine; stored tidy. */
+function withCleanPhone<T extends { phone?: string }>(d: T): { data: T & { phone: string | null } } | { error: string } {
+  const { phone, error } = cleanPhone(d.phone ?? "");
+  if (error) return { error };
+  return { data: { ...d, phone } };
+}
+
 export async function createClientAction(_: ActionState, form: FormData): Promise<ActionState> {
   const parsed = clientSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const tidy = withCleanPhone(parsed.data);
+  if ("error" in tidy) return { error: tidy.error };
   const { supabase, user } = await requireRole("walker", "operator");
-  const { dog_name, ...d } = parsed.data;
+  const { dog_name, ...d } = tidy.data;
 
   const { data: client, error } = await supabase
     .from("clients")
@@ -60,16 +73,18 @@ export async function createClientAction(_: ActionState, form: FormData): Promis
 export async function updateClientAction(id: string, _: ActionState, form: FormData): Promise<ActionState> {
   const parsed = clientSchema.omit({ dog_name: true }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const tidy = withCleanPhone(parsed.data);
+  if ("error" in tidy) return { error: tidy.error };
   const { supabase } = await requireRole("walker", "operator");
   const { data: before } = await supabase.from("clients").select("address_line, city, lat").eq("id", id).maybeSingle();
   const { error } = await supabase
     .from("clients")
-    .update({ ...parsed.data, email: parsed.data.email || null })
+    .update({ ...tidy.data, email: tidy.data.email || null })
     .eq("id", id);
   if (error) return { error: friendly(error) };
 
   // Only hit the geocoder when the address changed (or never got placed).
-  const d = parsed.data;
+  const d = tidy.data;
   const moved = (before?.address_line ?? "") !== (d.address_line ?? "") || (before?.city ?? "") !== (d.city ?? "");
   let q = "";
   if (moved || (before?.lat == null && (d.address_line || d.city))) {
@@ -88,7 +103,7 @@ export async function regenerateInvite(clientId: string) {
 
 export async function addDogAction(clientId: string, _: ActionState, form: FormData): Promise<ActionState> {
   const name = String(form.get("name") ?? "").trim();
-  if (!name) return { error: "Enter the pet's name" };
+  if (!name) return { error: "Type the pet's name" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { data, error } = await supabase
     .from("dogs")
@@ -100,7 +115,14 @@ export async function addDogAction(clientId: string, _: ActionState, form: FormD
 }
 
 const clientRatingSchema = z.object({
-  score: z.coerce.number().int().min(1, "Pick 1 to 5").max(5, "Pick 1 to 5"),
+  score: z.preprocess(
+    (v) => toNumber(v) ?? undefined,
+    z
+      .number({ required_error: "Tap a number from 1 to 5", invalid_type_error: "Tap a number from 1 to 5" })
+      .int("Tap a number from 1 to 5")
+      .min(1, "Tap a number from 1 to 5")
+      .max(5, "Tap a number from 1 to 5"),
+  ),
   comment: z.string().trim().max(1000).optional(),
 });
 

@@ -16,7 +16,7 @@ export function LineRow({ invoiceId, line, editable }: { invoiceId: string; line
   if (editing && editable && !state?.done) {
     return (
       <li className="py-2">
-        <form action={action} className="flex flex-col gap-2">
+        <form noValidate action={action} className="flex flex-col gap-2">
           <Input name="description" defaultValue={line.description} aria-label="Description" required />
           <div className="flex gap-2">
             <Input name="amount" defaultValue={dollars(line.amount)} inputMode="decimal" aria-label="Amount in dollars" />
@@ -41,7 +41,7 @@ export function LineRow({ invoiceId, line, editable }: { invoiceId: string; line
             <button type="button" className="text-xs text-accent underline" onClick={() => setEditing(true)} data-edit-line>
               Edit
             </button>
-            <form action={removeLine.bind(null, line.id, invoiceId)}>
+            <form noValidate action={removeLine.bind(null, line.id, invoiceId)}>
               <button className="text-xs text-muted underline" title={line.kind === "walk" || line.kind === "stay" ? "Moves it to the next invoice" : "Delete"}>
                 {line.kind === "walk" || line.kind === "stay" ? "Later" : "Remove"}
               </button>
@@ -57,7 +57,7 @@ export function AddLineForm({ invoiceId, today }: { invoiceId: string; today: st
   const [state, action, pending] = useActionState(addLine.bind(null, invoiceId), undefined);
   return (
     <Card>
-      <form action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
+      <form noValidate action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
         <p className="font-medium">Add a fee or discount</p>
         <div className="grid grid-cols-2 gap-2">
           <Select name="kind" defaultValue="extra" aria-label="Kind">
@@ -83,7 +83,7 @@ export function PaymentForm({ invoiceId, today, balance, methods }: { invoiceId:
   const [state, action, pending] = useActionState(recordPayment.bind(null, invoiceId), undefined);
   return (
     <Card>
-      <form action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
+      <form noValidate action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
         <p className="font-medium">Mark a payment received</p>
         <Field label="Amount" hint={`${cents(balance)} still owed. Partial payments are fine.`}>
           <Input name="amount" defaultValue={dollars(balance)} inputMode="decimal" required />
@@ -127,7 +127,7 @@ export function VoidButton({ invoiceId }: { invoiceId: string }) {
     );
   }
   return (
-    <form action={voidInvoice.bind(null, invoiceId)} className="mt-4 flex flex-col gap-2">
+    <form noValidate action={voidInvoice.bind(null, invoiceId)} className="mt-4 flex flex-col gap-2">
       <p className="text-center text-sm text-muted">The client is told it&apos;s voided. Its walks go back to unbilled for the next invoice.</p>
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={() => setSure(false)}>

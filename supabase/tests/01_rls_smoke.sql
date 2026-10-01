@@ -1043,6 +1043,41 @@ do $$ begin
   end if;
 end $$;
 
+-- Breached-password notice (0026): a person reads only their own; nobody but the server writes.
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into password_notices (user_id, state) values ('00000000-0000-0000-0000-00000000000a', 'show');
+set local role authenticated;
+select _as('00000000-0000-0000-0000-00000000000b');
+do $$ begin
+  if exists (select 1 from password_notices) then raise exception 'Walker B can see walker A''s password notice'; end if;
+end $$;
+select _as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if (select count(*) from password_notices) <> 1 then raise exception 'Walker A should see their own password notice'; end if;
+  begin
+    update password_notices set state = 'dismissed';
+    raise exception 'SHOULD_FAIL';
+  exception when insufficient_privilege then null; when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'A person changed their password notice directly'; end if;
+  end;
+  begin
+    insert into password_notices (user_id, state) values ('00000000-0000-0000-0000-00000000000b', 'show');
+    raise exception 'SHOULD_FAIL';
+  exception when insufficient_privilege then null; when others then
+    if sqlerrm = 'SHOULD_FAIL' then raise exception 'A person wrote someone else''s password notice'; end if;
+  end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+set local role anon;
+do $$ begin
+  begin
+    if exists (select 1 from password_notices) then raise exception 'Logged-out visitor read password notices'; end if;
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
 -- Who may call which function (0025). Any new function must be placed on purpose.
 reset role;
 do $$

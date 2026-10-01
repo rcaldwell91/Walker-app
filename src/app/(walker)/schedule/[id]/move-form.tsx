@@ -19,7 +19,7 @@ export function MoveOccurrenceForm({
   const [tz, setTz] = useState("");
   useEffect(() => setTz(Intl.DateTimeFormat().resolvedOptions().timeZone), []);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form noValidate action={action} className="flex flex-col gap-3">
       <input type="hidden" name="tz" value={tz} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="New date">
@@ -30,7 +30,7 @@ export function MoveOccurrenceForm({
         </Field>
       </div>
       <Field label="Minutes">
-        <Input type="number" name="duration_min" min={5} max={1440} step={5} defaultValue={defaultDuration} required />
+        <Input inputMode="numeric" name="duration_min" defaultValue={defaultDuration} />
       </Field>
       <Button type="submit" variant="secondary" disabled={pending || !tz}>
         {pending ? "Moving…" : "Move just this one"}

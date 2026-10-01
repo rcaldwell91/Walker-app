@@ -10,6 +10,7 @@ import { billNow, METHOD_LABEL, summarize, INVOICE_FIELDS, type Schedule } from 
 import { cents } from "@/lib/format";
 import { clientProfileId, notify } from "@/lib/notify";
 import { friendly } from "@/lib/errors";
+import { toNumber } from "@/lib/input";
 
 export type MoneyState = { error?: string; done?: number } | undefined;
 
@@ -33,11 +34,17 @@ export async function billClientNow(clientId: string) {
   redirect(id ? `/money/invoices/${id}` : `/clients/${clientId}?error=${encodeURIComponent("Nothing to bill yet: no finished walks or extras.")}`);
 }
 
-const dollars = z.coerce.number().refine((n) => Number.isFinite(n) && n > 0 && n <= 100000, "Enter an amount, like 5 or 12.50");
+/** "$45", "45.00", "1,200" → dollars; anything else gets one plain line. */
+const money = (msg: string, min: (n: number) => boolean) =>
+  z.preprocess(
+    (v) => toNumber(v) ?? undefined,
+    z.number({ required_error: msg, invalid_type_error: msg }).refine((n) => min(n) && n <= 100000, msg),
+  );
+const dollars = money("Amount: a number like 5 or 12.50", (n) => n > 0);
 
 const lineSchema = z.object({
   kind: z.enum(["extra", "discount"]),
-  description: z.string().trim().min(1, "Describe it, e.g. Key pickup").max(200),
+  description: z.string().trim().min(1, "Describe it, e.g. Key pickup").max(200, "Keep the description under 200 characters"),
   amount: dollars,
   occurred_on: z.string().refine(isDateKey, "Pick a date"),
 });
@@ -75,8 +82,8 @@ export async function addLine(invoiceId: string, _: MoneyState, form: FormData):
 }
 
 const editSchema = z.object({
-  description: z.string().trim().min(1).max(200),
-  amount: z.coerce.number().refine((n) => Number.isFinite(n) && n >= 0 && n <= 100000, "Enter an amount"),
+  description: z.string().trim().min(1, "Describe it, e.g. Key pickup").max(200, "Keep the description under 200 characters"),
+  amount: money("Amount: a number like 5 or 12.50", (n) => n >= 0),
 });
 
 export async function updateLine(lineId: string, invoiceId: string, _: MoneyState, form: FormData): Promise<MoneyState> {
@@ -129,9 +136,9 @@ export async function sendInvoice(invoiceId: string) {
 
 const paymentSchema = z.object({
   amount: dollars,
-  method: z.enum(Object.keys(METHOD_LABEL) as [string, ...string[]]),
+  method: z.enum(Object.keys(METHOD_LABEL) as [string, ...string[]], { errorMap: () => ({ message: "Tap how they paid" }) }),
   received_on: z.string().refine(isDateKey, "Pick the date you got it"),
-  note: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(200, "Keep the note under 200 characters").optional(),
 });
 
 export async function recordPayment(invoiceId: string, _: MoneyState, form: FormData): Promise<MoneyState> {
@@ -166,8 +173,10 @@ export async function recordPayment(invoiceId: string, _: MoneyState, form: Form
 }
 
 export async function setNetDays(form: FormData) {
-  const days = Number(form.get("invoice_net_days"));
-  if (!Number.isInteger(days) || days < 0 || days > 120) return;
+  // No room for a message here: tidy what was typed ("14 days", "7.5", "200") into 0–120.
+  const n = toNumber(form.get("invoice_net_days"));
+  if (n == null) return;
+  const days = Math.min(120, Math.max(0, Math.round(n)));
   const { supabase, user } = await requireRole("walker");
   await supabase.from("walkers").update({ invoice_net_days: days }).eq("id", user.id);
   refresh();

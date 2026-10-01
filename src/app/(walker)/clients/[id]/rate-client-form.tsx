@@ -8,7 +8,7 @@ import { ScoreInput } from "@/components/score-input";
 export function RateClientForm({ clientId }: { clientId: string }) {
   const [state, action, pending] = useActionState(rateClient.bind(null, clientId), undefined);
   return (
-    <form action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
+    <form noValidate action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
       <ScoreInput name="score" label="How are they to work with?" low="Hard" high="Great" />
       <Field label="Private note (optional)">
         <Input name="comment" maxLength={1000} />

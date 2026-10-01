@@ -74,7 +74,7 @@ export function ApprovalPrompt({ c, walkerName }: { c: SquadChoice; walkerName: 
         home on those days. You can revoke this any time under More.
       </p>
       <div className="mt-3 flex gap-2">
-        <form action={dismissApprovalAsk.bind(null, c.client_id, c.coverage_walker_id)} className="flex-1">
+        <form noValidate action={dismissApprovalAsk.bind(null, c.client_id, c.coverage_walker_id)} className="flex-1">
           <Button type="submit" variant="secondary" className="w-full">
             Not now
           </Button>

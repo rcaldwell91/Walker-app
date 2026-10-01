@@ -18,12 +18,12 @@ export function IncomingCoverCard({ r, tz }: { r: Coverage; tz: string }) {
       </p>
       {r.message ? <p className="mt-1 text-sm">“{r.message}”</p> : null}
       <div className="mt-3 flex gap-2">
-        <form action={respondToCoverage.bind(null, r.id, false)} className="flex-1">
+        <form noValidate action={respondToCoverage.bind(null, r.id, false)} className="flex-1">
           <Button type="submit" variant="secondary" className="w-full">
             Decline
           </Button>
         </form>
-        <form action={respondToCoverage.bind(null, r.id, true)} className="flex-1">
+        <form noValidate action={respondToCoverage.bind(null, r.id, true)} className="flex-1">
           <Button type="submit" className="w-full">
             Accept
           </Button>

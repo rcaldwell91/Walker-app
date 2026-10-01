@@ -54,7 +54,7 @@ export function BookStayForm({
   const shownPrice = price ?? (nightCents != null && pets.length && nights ? (computed / 100).toFixed(2).replace(/\.00$/, "") : "");
 
   return (
-    <form action={action} className="flex flex-col gap-4" onChange={() => setWarn(false)}>
+    <form noValidate action={action} className="flex flex-col gap-4" onChange={() => setWarn(false)}>
       <Card className="flex flex-col gap-4">
         <Field label="Client">
           <Select

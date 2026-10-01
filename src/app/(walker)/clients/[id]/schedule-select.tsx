@@ -9,7 +9,7 @@ import type { Schedule } from "@/lib/billing";
 export function ScheduleSelect({ clientId, value, labels }: { clientId: string; value: Schedule; labels: Record<Schedule, string> }) {
   const form = useRef<HTMLFormElement>(null);
   return (
-    <form ref={form} action={setBillingSchedule.bind(null, clientId)}>
+    <form noValidate ref={form} action={setBillingSchedule.bind(null, clientId)}>
       <label className="block">
         <span className="mb-1 block text-sm font-medium">Send invoices</span>
         <Select name="billing_schedule" defaultValue={value} onChange={() => form.current?.requestSubmit()} data-billing-schedule>

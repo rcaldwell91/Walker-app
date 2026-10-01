@@ -121,7 +121,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
       ) : null}
 
       {(r.status === "accepted" || r.status === "open") && !over ? (
-        <form action={cancelCoverage.bind(null, r.id)}>
+        <form noValidate action={cancelCoverage.bind(null, r.id)}>
           <Button type="submit" variant="secondary" className="w-full">
             {r.status === "open" && !r.incoming ? "Withdraw the request" : "Cancel the cover"}
           </Button>

@@ -66,7 +66,7 @@ export default async function EditBookingPage({
       {cancelled ? (
         <Card className="mb-4 border-warn/40">
           <p className="mb-3 font-medium text-warn">This booking is cancelled.</p>
-          <form action={setBookingCancelled.bind(null, b.id, false)}>
+          <form noValidate action={setBookingCancelled.bind(null, b.id, false)}>
             <Button type="submit" variant="secondary" className="w-full">
               Restore it
             </Button>
@@ -80,7 +80,7 @@ export default async function EditBookingPage({
           {change?.skipped ? (
             <>
               <p className="mb-3 text-sm text-muted">Skipped. The rest of the repeats are unchanged.</p>
-              <form action={clearOccurrenceChange.bind(null, b.id, day)}>
+              <form noValidate action={clearOccurrenceChange.bind(null, b.id, day)}>
                 <Button type="submit" variant="secondary" className="w-full">
                   Put this day back
                 </Button>
@@ -91,7 +91,7 @@ export default async function EditBookingPage({
               <p className="mb-3 text-sm text-muted">
                 Moved to {fmtDate(change.moved_to, tz)} at {fmtTime(change.moved_to, tz)}. The rest of the repeats are unchanged.
               </p>
-              <form action={clearOccurrenceChange.bind(null, b.id, day)}>
+              <form noValidate action={clearOccurrenceChange.bind(null, b.id, day)}>
                 <Button type="submit" variant="secondary" className="w-full">
                   Put it back at the usual time
                 </Button>
@@ -100,7 +100,7 @@ export default async function EditBookingPage({
           ) : (
             <>
               <p className="mb-3 text-sm text-muted">Change this one day without touching the rest.</p>
-              <form action={skipOccurrence.bind(null, b.id, day, tz)} className="mb-4">
+              <form noValidate action={skipOccurrence.bind(null, b.id, day, tz)} className="mb-4">
                 <Button type="submit" variant="secondary" className="w-full">
                   Skip this day
                 </Button>
@@ -119,7 +119,7 @@ export default async function EditBookingPage({
               <p className="mb-3 text-sm">
                 Covered by <span className="font-medium">{cover.request.to_name}</span>. {clientName} has been told.
               </p>
-              <form action={cancelCoverage.bind(null, cover.request.id)}>
+              <form noValidate action={cancelCoverage.bind(null, cover.request.id)}>
                 <Button type="submit" variant="secondary" className="w-full">
                   Cancel the cover
                 </Button>
@@ -132,7 +132,7 @@ export default async function EditBookingPage({
                   {cover.requests.map((r) => (
                     <li key={r.id} className="flex items-center justify-between gap-2">
                       <span>Asked {r.to_name}. Waiting to hear back.</span>
-                      <form action={cancelCoverage.bind(null, r.id)}>
+                      <form noValidate action={cancelCoverage.bind(null, r.id)}>
                         <button type="submit" className="text-xs text-muted underline">
                           Withdraw
                         </button>
@@ -169,7 +169,7 @@ export default async function EditBookingPage({
       />
 
       {!cancelled ? (
-        <form action={setBookingCancelled.bind(null, b.id, true)} className="mt-6">
+        <form noValidate action={setBookingCancelled.bind(null, b.id, true)} className="mt-6">
           <Button type="submit" variant="danger" className="w-full">
             {b.repeat_weekdays?.length ? "Cancel all repeats" : "Cancel booking"}
           </Button>

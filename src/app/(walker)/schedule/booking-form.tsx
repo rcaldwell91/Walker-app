@@ -34,7 +34,7 @@ export function BookingForm({
   const [state, action, pending] = useActionState(saveBooking.bind(null, bookingId), undefined);
   const [clientId, setClientId] = useState(initial.client_id ?? clients[0]?.id ?? "");
   const [serviceId, setServiceId] = useState(initial.service_type_id ?? services[0]?.id ?? "");
-  const [duration, setDuration] = useState(initial.duration_min ?? services[0]?.default_duration_min ?? 60);
+  const [duration, setDuration] = useState<number | string>(initial.duration_min ?? services[0]?.default_duration_min ?? 60);
   const [repeat, setRepeat] = useState<Set<number>>(new Set(initial.repeat_weekdays ?? []));
   const client = clients.find((c) => c.id === clientId);
   const [dogIds, setDogIds] = useState<Set<string>>(new Set(initial.dog_ids ?? client?.dogs.map((d) => d.id) ?? []));
@@ -59,7 +59,7 @@ export function BookingForm({
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form noValidate action={action} className="flex flex-col gap-4">
       <FormDraft id={`booking:${bookingId ?? "new"}`} />
       <input type="hidden" name="tz" value={tz} />
       <Field label="Client">
@@ -124,14 +124,10 @@ export function BookingForm({
 
       <Field label="Minutes">
         <Input
-          type="number"
+          inputMode="numeric"
           name="duration_min"
-          min={5}
-          max={1440}
-          step={5}
           value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-          required
+          onChange={(e) => setDuration(e.target.value)}
         />
       </Field>
 

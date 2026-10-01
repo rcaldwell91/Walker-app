@@ -1,22 +1,25 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { AuthState } from "@/app/(auth)/actions";
 import { friendly } from "@/lib/errors";
-
-const schema = z.object({
-  token: z.string().min(10),
-  full_name: z.string().min(2, "Enter your name"),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(8, "Password needs at least 8 characters"),
-});
+import { cleanEmail, looksLikeEmail } from "@/lib/input";
+import { isPwnedPassword } from "@/lib/pwned";
+import { rememberPasswordCheck } from "@/lib/password-notice";
 
 export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthState> {
-  const parsed = schema.safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const d = parsed.data;
+  const d = {
+    token: String(form.get("token") ?? ""),
+    full_name: String(form.get("full_name") ?? "").trim().replace(/\s+/g, " "),
+    email: cleanEmail(String(form.get("email") ?? "")),
+    password: String(form.get("password") ?? ""),
+  };
+  if (d.full_name.length < 2) return { error: "Type your name" };
+  if (!d.email) return { error: "Type your email. You'll log in with it" };
+  if (!looksLikeEmail(d.email)) return { error: "Check the email. It should look like name@example.com" };
+  if (d.password.length < 8) return { error: "Password needs at least 8 characters" };
+  const warnedAlready = form.get("breach_ok") === "1";
 
   const admin = createServiceClient();
   const { data: invite } = await admin
@@ -26,6 +29,17 @@ export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthSt
     .maybeSingle();
   if (!invite || invite.redeemed_at || new Date(invite.expires_at) < new Date()) {
     return { error: "This invite link isn't valid anymore." };
+  }
+
+  // A password that has shown up in a breach: warn before making a new login with it
+  // (never refuse). If it's the password of a login they already have, this is
+  // a sign-in, so let them in and leave the notice for after.
+  let breached: boolean | null = null;
+  if (!warnedAlready && (breached = await isPwnedPassword(d.password)) === true) {
+    const supabase = await createClient();
+    const { error: sErr } = await supabase.auth.signInWithPassword({ email: d.email, password: d.password });
+    if (sErr) return { breached: true };
+    await supabase.auth.signOut();
   }
 
   // Create the login (auto-confirmed: they came from a link the walker sent them).
@@ -49,10 +63,12 @@ export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthSt
       return { error: "An account with that email exists. Enter that account's password." };
     }
     userId = signedIn.user.id;
+    await rememberPasswordCheck(userId, breached).catch(() => {});
   } else {
     const supabase = await createClient();
     const { error: sErr } = await supabase.auth.signInWithPassword({ email: d.email, password: d.password });
     if (sErr) return { error: "Your account is made. Log in with that email and password." };
+    if (warnedAlready && userId) await rememberPasswordCheck(userId, true, true).catch(() => {});
   }
 
   const { error: linkErr } = await admin

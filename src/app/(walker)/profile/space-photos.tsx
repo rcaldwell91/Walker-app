@@ -30,12 +30,13 @@ export function SpacePhotos({ userId, photos }: { userId: string; photos: { id: 
         const { error: upErr } = await createClient().storage.from("avatars").upload(path, blob, { contentType: "image/jpeg" });
         if (upErr) throw upErr;
         const res = await addSpacePhoto(path, caption);
-        if (res.error) throw new Error(res.error);
+        if (res.error) throw Object.assign(new Error(res.error), { plain: true });
       }
       setCaption("");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+      // Our own lines (already plain) show as they are; anything technical becomes one plain line.
+      setError(e instanceof Error && "plain" in e ? e.message : navigator.onLine ? "Upload failed. Try again." : "No signal. Try again when you have a bar.");
     } finally {
       setBusy(null);
       if (input.current) input.current.value = "";
@@ -51,7 +52,7 @@ export function SpacePhotos({ userId, photos }: { userId: string; photos: { id: 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt={p.caption ?? "Your space"} className="aspect-square w-full rounded-xl object-cover" />
               {p.caption ? <p className="mt-1 text-xs text-muted">{p.caption}</p> : null}
-              <form action={removeSpacePhoto.bind(null, p.id)} className="absolute right-1 top-1">
+              <form noValidate action={removeSpacePhoto.bind(null, p.id)} className="absolute right-1 top-1">
                 <button aria-label="Remove photo" className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-lg text-white">
                   ×
                 </button>

@@ -7,6 +7,7 @@ import { AppSetup } from "@/components/app-setup";
 import { platformFrom } from "@/lib/device";
 import { logout } from "@/app/(auth)/actions";
 import { PendingPhotoSender } from "@/lib/photo-queue";
+import { PasswordNotice } from "@/components/password-notice-slot";
 
 export default async function WalkerLayout({ children }: { children: React.ReactNode }) {
   const { supabase, user, profile } = await requireRole("walker", "operator");
@@ -18,7 +19,7 @@ export default async function WalkerLayout({ children }: { children: React.React
         <p className="mb-6 text-muted">
           Your public page is hidden and the walker app is locked for now. Contact the app operator to sort it out.
         </p>
-        <form action={logout}>
+        <form noValidate action={logout}>
           <button className="text-accent underline">Log out</button>
         </form>
       </div>
@@ -37,6 +38,7 @@ export default async function WalkerLayout({ children }: { children: React.React
             Your account is paused, so your public page is hidden. Everything else works as usual.
           </p>
         ) : null}
+        <PasswordNotice supabase={supabase} userId={user.id} changeHref="/profile/password" />
         {children}
       </div>
       <BottomNav role="walker" />

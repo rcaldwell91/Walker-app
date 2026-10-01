@@ -9,7 +9,7 @@ export type RateRow = { id: string; name: string; defaultDuration: number; enabl
 export function RatesForm({ services }: { services: RateRow[] }) {
   const [state, action, pending] = useActionState(saveRates, undefined);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form noValidate action={action} className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
         {services.map((s) => (
           <li key={s.id}>
@@ -23,7 +23,7 @@ export function RatesForm({ services }: { services: RateRow[] }) {
                   <Input name={`svc_rate[${s.id}]`} inputMode="decimal" defaultValue={s.rate} placeholder="e.g. 25" aria-label={`${s.name} rate in dollars`} />
                 </Field>
                 <Field label="Minutes">
-                  <Input name={`svc_duration[${s.id}]`} type="number" min={5} max={1440} step={5} defaultValue={s.duration ?? s.defaultDuration} aria-label={`${s.name} minutes`} />
+                  <Input name={`svc_duration[${s.id}]`} inputMode="numeric" defaultValue={s.duration ?? s.defaultDuration} aria-label={`${s.name} minutes`} />
                 </Field>
               </div>
             </Card>

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/session";
 import { clientProfileId, notify } from "@/lib/notify";
 import { friendly } from "@/lib/errors";
+import { cleanPhone } from "@/lib/input";
+import { isDateKey } from "@/lib/time";
 
 export type ActionState = { error?: string; ok?: boolean; at?: number } | undefined;
 
@@ -14,7 +16,12 @@ export async function updateDog(dogId: string, _: ActionState, form: FormData): 
   for (const f of fields) {
     if (form.has(f)) payload[f] = String(form.get(f)).trim() || (f === "working_on" || f === "progress_summary" || f === "name" ? "" : null);
   }
-  if (payload.name === "") return { error: "Your pet needs a name" };
+  if (payload.name === "") return { error: "Type the pet's name" };
+  if (payload.vet_phone) {
+    const vet = cleanPhone(payload.vet_phone); // brackets, dashes, spaces are fine
+    if (vet.error) return { error: `Vet phone: ${vet.error.replace(/^Phone: /, "").replace(/^T/, "t")}` };
+    payload.vet_phone = vet.phone;
+  }
   const { error } = await supabase.from("dogs").update(payload).eq("id", dogId);
   if (error) return { error: friendly(error) };
   revalidatePath(`/pets/${dogId}`);
@@ -23,14 +30,16 @@ export async function updateDog(dogId: string, _: ActionState, form: FormData): 
 
 export async function assignHomework(dogId: string, _: ActionState, form: FormData): Promise<ActionState> {
   const title = String(form.get("title") ?? "").trim();
-  if (!title) return { error: "What should they work on?" };
+  if (!title) return { error: "Type what they should work on, e.g. Wait at the door" };
+  const due = String(form.get("due_at") ?? "").trim();
+  if (due && !isDateKey(due)) return { error: "Pick a due date, or leave it blank" };
   const { supabase, user } = await requireRole("walker", "operator");
   const { error } = await supabase.from("homework").insert({
     dog_id: dogId,
     walker_id: user.id,
     title,
     instructions: String(form.get("instructions") ?? "").trim() || null,
-    due_at: String(form.get("due_at") ?? "") || null,
+    due_at: due || null,
   });
   if (error) return { error: friendly(error) };
   const { data: dog } = await supabase.from("dogs").select("name, client_id").eq("id", dogId).maybeSingle();

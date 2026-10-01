@@ -30,7 +30,7 @@ export function CoverRequestForm({
     );
   }
   return (
-    <form action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
+    <form noValidate action={action} className="flex flex-col gap-3" key={state?.done ?? 0}>
       <fieldset>
         <legend className="mb-1 text-sm font-medium">Who should cover?</legend>
         <ul className="flex flex-col gap-2">

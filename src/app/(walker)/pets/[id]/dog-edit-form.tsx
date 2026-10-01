@@ -25,7 +25,7 @@ export function DogEditForm({ dog }: { dog: Dog }) {
   const [editedAt, setEditedAt] = useState(0);
   const savedNow = !!state?.ok && !pending && (state.at ?? 0) > editedAt;
   return (
-    <form action={action} onChange={() => setEditedAt(Date.now())}>
+    <form noValidate action={action} onChange={() => setEditedAt(Date.now())}>
       <Card className="flex flex-col gap-3">
         <Field label="Working on">
           <Input name="working_on" defaultValue={dog.working_on} placeholder="e.g. wait and stay" />
