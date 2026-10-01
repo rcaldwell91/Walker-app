@@ -1,3 +1,5 @@
+import { fmtPhone } from "@/lib/input";
+
 /** A squad member's card: only the fields squad members may see of each other. */
 export function WalkerCard({
   w,
@@ -30,7 +32,7 @@ export function WalkerCard({
         {w.service_area ? <p className="truncate text-muted">{w.service_area}</p> : null}
         {w.phone ? (
           <a href={`tel:${w.phone}`} className="text-accent">
-            {w.phone}
+            {fmtPhone(w.phone)}
           </a>
         ) : null}
       </div>

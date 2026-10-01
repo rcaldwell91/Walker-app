@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { ActionState } from "@/app/(walker)/clients/actions";
 import { Button, ErrorText, Field, Input, Textarea } from "@/components/ui";
 import { FormDraft } from "@/components/form-draft";
+import { fmtPhone } from "@/lib/input";
 
 const COLORS = ["#2f7d5b", "#2b6cb0", "#b3541e", "#8e44ad", "#c0392b", "#d4a017", "#16a085", "#7f8c8d"];
 
@@ -48,7 +49,7 @@ export function ClientForm({
         <Input name="email" type="email" defaultValue={initial.email ?? ""} />
       </Field>
       <Field label="Phone">
-        <Input name="phone" type="tel" defaultValue={initial.phone ?? ""} />
+        <Input name="phone" type="tel" defaultValue={fmtPhone(initial.phone)} />
       </Field>
       <Field label="Address">
         <Input name="address_line" defaultValue={initial.address_line ?? ""} autoComplete="street-address" />

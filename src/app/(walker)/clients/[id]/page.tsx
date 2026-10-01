@@ -16,6 +16,7 @@ import { INVOICE_FIELDS, SCHEDULE_LABEL, draftDueInvoices, statusLabel, summariz
 import { billClientNow } from "../../money/actions";
 import { ScheduleSelect } from "./schedule-select";
 import { BackBar } from "@/components/back-bar";
+import { fmtPhone } from "@/lib/input";
 
 export default async function ClientDetailPage({
   params,
@@ -139,7 +140,7 @@ export default async function ClientDetailPage({
 
       <h2 className="mb-2 mt-6 text-sm font-medium uppercase tracking-wide text-muted">Contact</h2>
       <Card className="text-sm">
-        {client.phone ? <p><a href={`tel:${client.phone}`} className="text-accent">{client.phone}</a></p> : null}
+        {client.phone ? <p><a href={`tel:${client.phone}`} className="text-accent">{fmtPhone(client.phone)}</a></p> : null}
         {client.email ? <p><a href={`mailto:${client.email}`} className="text-accent">{client.email}</a></p> : null}
         {client.home_access_notes ? (
           <p className="mt-2 whitespace-pre-wrap text-muted">{client.home_access_notes}</p>

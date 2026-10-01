@@ -8,6 +8,7 @@ import { getTimeZone } from "@/lib/timezone";
 import { BackBar } from "@/components/back-bar";
 import { readNotificationsFor } from "@/lib/notify";
 import { fmtDateKey } from "@/lib/time";
+import { fmtPhone } from "@/lib/input";
 
 const SEX_LABEL: Record<string, string> = { male: "Male", female: "Female", male_neutered: "Male (neutered)", female_spayed: "Female (spayed)" };
 
@@ -40,7 +41,7 @@ export default async function MyDogPage({ params }: { params: Promise<{ id: stri
     ["Sex", dog.sex ? SEX_LABEL[dog.sex] ?? dog.sex : null],
     ["Birthday", dog.birthdate ? fmtDateKey(dog.birthdate, { month: "long", day: "numeric", year: "numeric" }) : null],
     ["Weight", dog.weight_lbs ? `${dog.weight_lbs} lb` : null],
-    ["Vet", [dog.vet_name, dog.vet_phone].filter(Boolean).join(" · ") || null],
+    ["Vet", [dog.vet_name, fmtPhone(dog.vet_phone)].filter(Boolean).join(" · ") || null],
     ["Medications", dog.medications],
     ["Allergies", dog.allergies],
     ["Quirks", dog.quirks],

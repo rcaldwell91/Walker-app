@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { THEME_COOKIE, isThemeChoice } from "@/lib/theme";
 import { cookies } from "next/headers";
 import { BackupWalkerList, type SquadChoice } from "../backup-walkers";
+import { fmtPhone } from "@/lib/input";
 
 export default async function MyMorePage({ searchParams }: { searchParams: Promise<{ password?: string }> }) {
   const { password } = await searchParams;
@@ -22,7 +23,7 @@ export default async function MyMorePage({ searchParams }: { searchParams: Promi
   const [{ data: rows }, { data: checkIns }, { data: choices }, { data: invoiceRows }] = await Promise.all([
     supabase
       .from("clients")
-      .select("id, status, walker:walkers!clients_walker_id_fkey(id, business_name, suggestion_box_enabled, profile:profiles(full_name))"),
+      .select("id, status, walker:walkers!clients_walker_id_fkey(id, business_name, suggestion_box_enabled, profile:profiles(full_name, phone))"),
     supabase
       .from("check_ins")
       .select("id, responded_at, answers")
@@ -43,12 +44,33 @@ export default async function MyMorePage({ searchParams }: { searchParams: Promi
   const walkers = (rows ?? []).map((r) => {
     const w = Array.isArray(r.walker) ? r.walker[0] : r.walker;
     const p = w && (Array.isArray(w.profile) ? w.profile[0] : w.profile);
-    return { id: w?.id as string, name: w?.business_name || p?.full_name || "your walker", boxOn: !!w?.suggestion_box_enabled, active: r.status === "active" };
+    return { id: w?.id as string, name: w?.business_name || p?.full_name || "your walker", person: p?.full_name ?? "", phone: (p?.phone as string | null) ?? null, boxOn: !!w?.suggestion_box_enabled, active: r.status === "active" };
   });
 
   return (
     <>
       <PageTitle>More</PageTitle>
+
+      <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Your walker</h2>
+      <ul className="mb-6 flex flex-col gap-2">
+        {walkers
+          .filter((w) => w.active)
+          .map((w) => (
+            <li key={w.id}>
+              <Card className="flex items-center justify-between gap-3 text-sm" data-your-walker>
+                <span className="min-w-0">
+                  <span className="block font-medium">{w.name}</span>
+                  {w.person && w.person !== w.name ? <span className="block text-muted">{w.person}</span> : null}
+                </span>
+                {w.phone ? (
+                  <a href={`tel:${w.phone}`} className="btn inline-flex h-11 shrink-0 items-center rounded-xl border border-border px-4 font-medium text-accent" data-walker-phone>
+                    Call {fmtPhone(w.phone)}
+                  </a>
+                ) : null}
+              </Card>
+            </li>
+          ))}
+      </ul>
 
       <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Your account</h2>
       <Card className="mb-6 text-sm">

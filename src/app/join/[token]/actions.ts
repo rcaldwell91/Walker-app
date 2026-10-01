@@ -19,6 +19,7 @@ export async function redeemInvite(_: AuthState, form: FormData): Promise<AuthSt
   if (!d.email) return { error: "Type your email. You'll log in with it" };
   if (!looksLikeEmail(d.email)) return { error: "Check the email. It should look like name@example.com" };
   if (d.password.length < 8) return { error: "Password needs at least 8 characters" };
+  if (form.has("password_confirm") && form.get("password_confirm") !== d.password) return { error: "These don't match. Type the same password in both boxes." };
   const warnedAlready = form.get("breach_ok") === "1";
 
   const admin = createServiceClient();

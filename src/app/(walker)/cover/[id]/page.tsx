@@ -8,6 +8,7 @@ import { cancelCoverage } from "../../coverage-actions";
 import { IncomingCoverCard } from "../../cover-cards";
 import { BackBar } from "@/components/back-bar";
 import { readNotificationsFor } from "@/lib/notify";
+import { fmtPhone } from "@/lib/input";
 
 const STATUS = { open: "Waiting for an answer", accepted: "Accepted", declined: "Declined", cancelled: "Cancelled" } as const;
 
@@ -78,7 +79,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
                   <>
                     {" · "}
                     <a href={`tel:${client.phone}`} className="text-accent">
-                      {client.phone}
+                      {fmtPhone(client.phone)}
                     </a>
                   </>
                 ) : null}
@@ -100,7 +101,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
                     {d.quirks ? <p className="text-warn">{d.quirks}</p> : null}
                     {d.medications ? <p><span className="text-muted">Meds:</span> {d.medications}</p> : null}
                     {d.allergies ? <p><span className="text-muted">Allergies:</span> {d.allergies}</p> : null}
-                    {d.vet_name || d.vet_phone ? <p><span className="text-muted">Vet:</span> {[d.vet_name, d.vet_phone].filter(Boolean).join(" · ")}</p> : null}
+                    {d.vet_name || d.vet_phone ? <p><span className="text-muted">Vet:</span> {[d.vet_name, fmtPhone(d.vet_phone)].filter(Boolean).join(" · ")}</p> : null}
                   </Card>
                 </li>
               ))}

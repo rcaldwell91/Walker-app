@@ -5,6 +5,7 @@ import { saveProfile } from "./actions";
 import { Button, Card, Field, Input, Select, FormStatus } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { FormDraft } from "@/components/form-draft";
+import { fmtPhone } from "@/lib/input";
 
 const CADENCES = [7, 14, 30, 60, 90];
 
@@ -13,6 +14,7 @@ export function ProfileForm({
 }: {
   initial: {
     full_name: string;
+    phone: string;
     business_name: string;
     bio: string;
     service_area: string;
@@ -29,6 +31,9 @@ export function ProfileForm({
       <FormDraft id="profile" done={state?.saved} />
       <Field label="Your name">
         <Input name="full_name" defaultValue={initial.full_name} required autoComplete="name" />
+      </Field>
+      <Field label="Phone" hint="Your clients and your backup walkers use this to reach you.">
+        <Input name="phone" type="tel" inputMode="tel" defaultValue={fmtPhone(initial.phone)} autoComplete="tel" data-profile-phone />
       </Field>
       <Field label="Business name" hint="Optional. Shown at the top of your public page.">
         <Input name="business_name" defaultValue={initial.business_name} />

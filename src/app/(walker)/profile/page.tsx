@@ -74,6 +74,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       <ProfileForm
         initial={{
           full_name: profile?.full_name ?? "",
+          phone: profile?.phone ?? "",
           business_name: walker.business_name,
           bio: walker.bio,
           service_area: walker.service_area,

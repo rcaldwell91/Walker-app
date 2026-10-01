@@ -50,8 +50,10 @@ export async function signupWalker(_: AuthState, form: FormData): Promise<AuthSt
   if (full_name.length < 2) return { error: "Type your name" };
   if (!email) return { error: "Type your email. You'll log in with it" };
   if (!looksLikeEmail(email)) return { error: EMAIL_LINE };
+  if (!phone.phone && !phone.error) return { error: "Type your phone number. Your clients and backup walkers use it to reach you" };
   if (phone.error) return { error: phone.error };
   if (password.length < 8) return { error: "Password needs at least 8 characters" };
+  if (form.has("password_confirm") && form.get("password_confirm") !== password) return { error: "These don't match. Type the same password in both boxes." };
   const warnedAlready = form.get("breach_ok") === "1";
   if (!warnedAlready && (await isPwnedPassword(password)) === true) return { breached: true };
 
@@ -134,6 +136,7 @@ export async function requestReset(_: ResetState, form: FormData): Promise<Reset
 export async function setNewPassword(_: AuthState, form: FormData): Promise<AuthState> {
   const password = String(form.get("password") ?? "");
   if (password.length < 8) return { error: "Password needs at least 8 characters" };
+  if (form.has("password_confirm") && form.get("password_confirm") !== password) return { error: "These don't match. Type the same password in both boxes." };
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { error: "That link has expired. Ask for a new one." };

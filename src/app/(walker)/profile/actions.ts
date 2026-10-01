@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase/server";
 import { friendly } from "@/lib/errors";
-import { HANDLE_RE, cleanHandle, handleCandidate } from "@/lib/input";
+import { HANDLE_RE, cleanHandle, cleanPhone, handleCandidate } from "@/lib/input";
 
 export type ProfileState = { error?: string; saved?: number } | undefined;
 
@@ -21,10 +21,13 @@ export async function saveProfile(_: ProfileState, form: FormData): Promise<Prof
   const parsed = profileSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  const phone = cleanPhone(String(form.get("phone") ?? ""));
+  if (!phone.phone && !phone.error) return { error: "Type your phone number. Your clients and backup walkers use it to reach you" };
+  if (phone.error) return { error: phone.error };
   const { supabase, user } = await requireRole("walker", "operator");
 
   const [{ error: pErr }, { error: wErr }] = await Promise.all([
-    supabase.from("profiles").update({ full_name: d.full_name }).eq("id", user.id),
+    supabase.from("profiles").update({ full_name: d.full_name, phone: phone.phone }).eq("id", user.id),
     supabase
       .from("walkers")
       .update({

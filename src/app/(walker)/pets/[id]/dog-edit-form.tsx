@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { updateDog } from "../actions";
 import { Button, Card, ErrorText, Field, Input } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
+import { fmtPhone } from "@/lib/input";
 
 type Dog = {
   id: string;
@@ -39,7 +40,7 @@ export function DogEditForm({ dog }: { dog: Dog }) {
             <Field label="Medications"><Input name="medications" defaultValue={dog.medications ?? ""} /></Field>
             <Field label="Allergies"><Input name="allergies" defaultValue={dog.allergies ?? ""} /></Field>
             <Field label="Vet"><Input name="vet_name" defaultValue={dog.vet_name ?? ""} /></Field>
-            <Field label="Vet phone"><Input name="vet_phone" type="tel" defaultValue={dog.vet_phone ?? ""} /></Field>
+            <Field label="Vet phone"><Input name="vet_phone" type="tel" defaultValue={fmtPhone(dog.vet_phone)} /></Field>
           </>
         ) : (
           <button type="button" className="text-left text-sm text-accent" onClick={() => setMore(true)}>

@@ -55,21 +55,35 @@ export function looksLikeEmail(s: string): boolean {
 }
 
 /**
- * Brackets, dashes, dots and spaces in a phone number are fine. US numbers are
- * stored as 555-123-4567; anything else keeps its digits (and a leading +).
- * Returns null for blank, or an error line if it can't be a phone number.
+ * Phone numbers are stored one way: international format (E.164), e.g.
+ * +16023013258. That's what any texting or calling service expects, so nobody
+ * has to be asked again later. Brackets, dashes, dots and spaces are fine to
+ * type; 10-digit numbers are taken as US/Canada (+1); anything else needs a +
+ * and its country code. Shown to people with fmtPhone().
+ * Returns null for blank, or one plain line if it can't be a phone number.
  */
 export function cleanPhone(raw: string): { phone: string | null; error?: string } {
   const s = String(raw ?? "").trim();
   if (!s) return { phone: null };
-  if (/[a-z]/i.test(s.replace(/\b(ext|x)\.?\s*\d+$/i, ""))) return { phone: null, error: "Phone: numbers only, like 555-123-4567" };
+  if (/[a-z]/i.test(s)) return { phone: null, error: "Phone: numbers only, like 602-555-0123" };
   const plus = s.startsWith("+");
-  let digits = s.replace(/\D/g, "");
-  if (digits.length < 7) return { phone: null, error: "That phone number looks short. Type all of it, like 555-123-4567" };
-  if (digits.length > 15) return { phone: null, error: "That phone number looks too long. Type just one number" };
-  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-  if (digits.length === 10 && (!plus || s.startsWith("+1"))) return { phone: `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}` };
-  return { phone: plus ? `+${digits}` : digits };
+  const digits = s.replace(/\D/g, "");
+  if (!plus) {
+    if (digits.length === 10) return { phone: `+1${digits}` };
+    if (digits.length === 11 && digits.startsWith("1")) return { phone: `+${digits}` };
+    if (digits.length < 10) return { phone: null, error: "Type the whole number with the area code, like 602-555-0123" };
+    return { phone: null, error: "That phone number has too many digits. Outside the US or Canada, start with + and the country code" };
+  }
+  if (digits.length < 8 || digits.length > 15) return { phone: null, error: "That phone number doesn't look right. Type it with + and the country code" };
+  if (digits.startsWith("1") && digits.length !== 11) return { phone: null, error: "Type the whole number with the area code, like 602-555-0123" };
+  return { phone: `+${digits}` };
+}
+
+/** +16023013258 → 602-301-3258; other countries keep their +; older free-form entries show as typed. */
+export function fmtPhone(phone: string | null | undefined): string {
+  const s = String(phone ?? "").trim();
+  const m = s.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : s;
 }
 
 /** "$45", "45.00", " 1,200 ", "about 40 lbs" → the number in it; null if there isn't one. */

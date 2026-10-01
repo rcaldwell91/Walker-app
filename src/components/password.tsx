@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, useState, type ComponentProps } from "react";
-import { Button, inputClass } from "./ui";
+import { forwardRef, useRef, useState, type ComponentProps, type FormEvent } from "react";
+import { Button, Field, inputClass } from "./ui";
 
 /**
  * A password box with a show/hide eye. Hidden to start. The eye sits inside the
@@ -40,6 +40,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<ComponentProps<"i
   );
 });
 
+export const MISMATCH = "These don't match. Type the same password in both boxes.";
 export const BREACH_WARNING = "This password has shown up in a known data breach. It still works here, but it's safer to pick another.";
 
 /**
@@ -54,6 +55,7 @@ export function PasswordSubmit({
   label,
   pendingLabel,
   error,
+  mismatch = false,
   onPickAnother,
 }: {
   warn: boolean;
@@ -61,6 +63,8 @@ export function PasswordSubmit({
   label: string;
   pendingLabel: string;
   error?: string | null;
+  /** The two password boxes differ: say so in the same reserved line, nothing else changes. */
+  mismatch?: boolean;
   onPickAnother: () => void;
 }) {
   return (
@@ -80,8 +84,8 @@ export function PasswordSubmit({
         </Button>
       )}
       {/* Room for three lines is always kept, so the warning never pushes anything. */}
-      <p className={`min-h-[3.75rem] text-sm ${error || warn ? "text-warn" : "text-muted"}`} role="status" data-breach-warning={warn ? "" : undefined}>
-        {error || (warn ? BREACH_WARNING : "")}
+      <p className={`min-h-[3.75rem] text-sm ${mismatch || error || warn ? "text-warn" : "text-muted"}`} role="status" data-breach-warning={warn && !mismatch ? "" : undefined} data-mismatch={mismatch ? "" : undefined}>
+        {mismatch ? MISMATCH : error || (warn ? BREACH_WARNING : "")}
       </p>
     </>
   );
@@ -92,4 +96,66 @@ export function useBreachWarning(state: { breached?: boolean } | undefined) {
   const [warnFor, setWarnFor] = useState<object | undefined>(undefined);
   const warn = !!state?.breached && warnFor !== state;
   return { warn, clear: () => setWarnFor(state) };
+}
+
+/**
+ * A new password typed twice ("Password" + "Type it again"), each with its own eye.
+ * If the two differ, the form isn't sent: the line under the button says so and
+ * nothing typed is cleared. The breach check is on the first box and only warns.
+ */
+export function useNewPassword(state: { breached?: boolean } | undefined) {
+  const breach = useBreachWarning(state);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [mismatch, setMismatch] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+  return {
+    password,
+    warn: breach.warn,
+    mismatch,
+    /** Put on the <form>: stops the send when the two boxes differ. */
+    onSubmit: (e: FormEvent<HTMLFormElement>) => {
+      if (password !== confirm) {
+        e.preventDefault();
+        setMismatch(true);
+      }
+    },
+    pickAnother: () => {
+      breach.clear();
+      setMismatch(false);
+      setPassword("");
+      setConfirm("");
+      first.current?.focus();
+    },
+    fields: ({ label, hint }: { label: string; hint: string }) => (
+      <>
+        <Field label={label} hint={hint}>
+          <PasswordInput
+            ref={first}
+            name="password"
+            value={password}
+            onChange={(e) => {
+              breach.clear();
+              setMismatch(false);
+              setPassword(e.target.value);
+            }}
+            autoComplete="new-password"
+            data-password
+          />
+        </Field>
+        <Field label="Type it again">
+          <PasswordInput
+            name="password_confirm"
+            value={confirm}
+            onChange={(e) => {
+              setMismatch(false);
+              setConfirm(e.target.value);
+            }}
+            autoComplete="new-password"
+            data-password-confirm
+          />
+        </Field>
+      </>
+    ),
+  };
 }

@@ -43,6 +43,7 @@ export async function submitIntake(_: ActionState, form: FormData): Promise<Acti
     return { error: issue.path[0] === "boarding_bringing" ? issue.message : "Couldn't save. Reload the page and try again." };
   }
   const phone = cleanPhone(parsed.data.phone ?? "");
+  if (!phone.phone && !phone.error) return { error: "Type your phone number, so your walker can reach you about your pet" };
   if (phone.error) return { error: phone.error };
 
   // Dogs come in as dog[0][name], dog[0][breed], ...

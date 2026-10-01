@@ -2,11 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { submitIntake } from "../actions";
-import { Button, Card, ErrorText, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Card, Field, FormStatus, Input, Select, Textarea } from "@/components/ui";
 import { VoiceInput } from "@/components/voice-input";
 import { BoardingClientFields, BoardingPetFields } from "@/components/boarding-intake";
 import type { PetBoarding } from "@/lib/boarding";
 import { FormDraft } from "@/components/form-draft";
+import { fmtPhone } from "@/lib/input";
 
 type Dog = {
   id?: string;
@@ -51,8 +52,8 @@ export function IntakeForm({
 
       <Card className="flex flex-col gap-4">
         <h2 className="font-medium">Your details</h2>
-        <Field label="Phone" hint="So your walker can reach you.">
-          <Input name="phone" type="tel" defaultValue={client.phone ?? ""} autoComplete="tel" />
+        <Field label="Phone" hint="Your walker uses this to reach you about your pet.">
+          <Input name="phone" type="tel" defaultValue={fmtPhone(client.phone)} autoComplete="tel" />
         </Field>
         <Field label="Address" hint="Where your walker picks up your pet.">
           <Input name="address_line" defaultValue={client.address_line ?? ""} autoComplete="street-address" />
@@ -99,7 +100,7 @@ export function IntakeForm({
             <Input name={`dog[${i}][vet_name]`} defaultValue={d.vet_name ?? ""} placeholder="e.g. Glen Park Animal Hospital" />
           </Field>
           <Field label="Vet phone">
-            <Input name={`dog[${i}][vet_phone]`} type="tel" defaultValue={d.vet_phone ?? ""} />
+            <Input name={`dog[${i}][vet_phone]`} type="tel" defaultValue={fmtPhone(d.vet_phone)} />
           </Field>
           <Field label="Medications" hint="Name, dose and when. Leave blank if none.">
             <Input name={`dog[${i}][medications]`} defaultValue={d.medications ?? ""} />
@@ -131,7 +132,7 @@ export function IntakeForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save"}
       </Button>
-      <ErrorText>{state?.error}</ErrorText>
+      <FormStatus error={state?.error} />
     </form>
   );
 }
